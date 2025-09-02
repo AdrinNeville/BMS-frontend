@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Management System</title>
+    <link rel="stylesheet" href="library.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                <span class="brand-text">Library System</span>
+            </div>
+            
+            <div class="nav-menu">
+                <button class="nav-item active" data-tab="books">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                    <span>Books</span>
+                </button>
+                
+                <button class="nav-item" data-tab="borrowed" id="borrowedTab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                    </svg>
+                    <span>My Books</span>
+                </button>
+                
+                <button class="nav-item admin-only hidden" data-tab="users" id="usersTab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    <span>Users</span>
+                </button>
+                
+                <button class="nav-item admin-only hidden" data-tab="admin" id="adminTab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    <span>Admin</span>
+                </button>
+            </div>
+            
+            <div class="nav-user">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <span id="userInitials">U</span>
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name" id="userName">Loading...</span>
+                        <span class="user-role" id="userRole">member</span>
+                    </div>
+                </div>
+                <button class="logout-btn" id="logoutBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16,17 21,12 16,7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Books Tab -->
+        <div class="tab-content active" id="booksTab">
+            <div class="content-header">
+                <h1>Library Books</h1>
+                <div class="search-bar">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21L16.65 16.65"/>
+                    </svg>
+                    <input type="text" id="searchBooks" placeholder="Search books by title or author...">
+                </div>
+            </div>
+            
+            <div class="books-grid" id="booksGrid">
+                <!-- Books will be loaded here -->
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Loading books...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Borrowed Books Tab -->
+        <div class="tab-content" id="borrowedBooksTab">
+            <div class="content-header">
+                <h1>My Borrowed Books</h1>
+                <p class="subtitle">Manage your borrowed books and return them when finished</p>
+            </div>
+            
+            <div class="borrowed-books-list" id="borrowedBooksList">
+                <!-- Borrowed books will be loaded here -->
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Loading your books...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Tab (Admin Only) -->
+        <div class="tab-content" id="usersTabContent">
+            <div class="content-header">
+                <h1>User Management</h1>
+                <p class="subtitle">View and manage library users</p>
+            </div>
+            
+            <div class="users-table-container">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr class="loading-row">
+                            <td colspan="4">
+                                <div class="spinner"></div>
+                                <span>Loading users...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Admin Panel Tab -->
+        <div class="tab-content" id="adminTabContent">
+            <div class="content-header">
+                <h1>Admin Panel</h1>
+                <p class="subtitle">Add new books and manage library settings</p>
+            </div>
+            
+            <div class="admin-sections">
+                <!-- Add Book Section -->
+                <div class="admin-card">
+                    <h2>Add New Book</h2>
+                    <form class="add-book-form" id="addBookForm">
+                        <div class="form-group">
+                            <label for="bookTitle">Book Title</label>
+                            <input type="text" id="bookTitle" placeholder="Enter book title" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bookAuthor">Author</label>
+                            <input type="text" id="bookAuthor" placeholder="Enter author name" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-text">Add Book</span>
+                            <div class="btn-spinner hidden">
+                                <div class="spinner"></div>
+                            </div>
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- All Borrowed Books Section -->
+                <div class="admin-card">
+                    <h2>All Borrowed Books</h2>
+                    <div class="all-borrowed-list" id="allBorrowedList">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Loading borrowed books...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Book Details Modal -->
+    <div class="modal-overlay hidden" id="bookModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalBookTitle">Book Title</h2>
+                <button class="modal-close" id="closeModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="book-info">
+                    <div class="book-cover">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        </svg>
+                    </div>
+                    <div class="book-details">
+                        <h3 id="modalBookAuthor">Author</h3>
+                        <div class="book-status">
+                            <span class="status-badge" id="modalBookStatus">Available</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelModal">Cancel</button>
+                <button class="btn btn-primary" id="borrowBookBtn">
+                    <span class="btn-text">Borrow Book</span>
+                    <div class="btn-spinner hidden">
+                        <div class="spinner"></div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success/Error Notifications -->
+    <div class="notification hidden" id="notification">
+        <div class="notification-content">
+            <div class="notification-icon"></div>
+            <div class="notification-message"></div>
+            <button class="notification-close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="library.js"></script>
+</body>
+</html>
