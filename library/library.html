@@ -16,7 +16,7 @@
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
                 </svg>
-                <span class="brand-text">Library System</span>
+                <span class="brand-text">Library BMS</span>
             </div>
             
             <div class="nav-menu">
@@ -54,6 +54,14 @@
                     </svg>
                     <span>Admin</span>
                 </button>
+
+                <button class="nav-item admin-only hidden" data-tab="reports" id="reportsTab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3v18h18"/>
+                        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                    </svg>
+                    <span>Reports</span>
+                </button>
             </div>
             
             <div class="nav-user">
@@ -72,6 +80,7 @@
                         <polyline points="16,17 21,12 16,7"/>
                         <line x1="21" y1="12" x2="9" y2="12"/>
                     </svg>
+                    <span>Logout</span>
                 </button>
             </div>
         </div>
@@ -83,17 +92,25 @@
         <div class="tab-content active" id="booksTab">
             <div class="content-header">
                 <h1>Library Books</h1>
-                <div class="search-bar">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"/>
-                        <path d="M21 21L16.65 16.65"/>
-                    </svg>
-                    <input type="text" id="searchBooks" placeholder="Search books by title or author...">
+                <div class="header-actions">
+                    <div class="search-bar">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="M21 21L16.65 16.65"/>
+                        </svg>
+                        <input type="text" id="searchBooks" placeholder="Search books by title or author...">
+                    </div>
+                    <div class="filter-controls">
+                        <select id="availabilityFilter">
+                            <option value="all">All Books</option>
+                            <option value="available">Available Only</option>
+                            <option value="borrowed">Borrowed Only</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             
             <div class="books-grid" id="booksGrid">
-                <!-- Books will be loaded here -->
                 <div class="loading-state">
                     <div class="spinner"></div>
                     <p>Loading books...</p>
@@ -109,7 +126,6 @@
             </div>
             
             <div class="borrowed-books-list" id="borrowedBooksList">
-                <!-- Borrowed books will be loaded here -->
                 <div class="loading-state">
                     <div class="spinner"></div>
                     <p>Loading your books...</p>
@@ -131,12 +147,13 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Role</th>
+                            <th>Active Borrows</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
                         <tr class="loading-row">
-                            <td colspan="4">
+                            <td colspan="5">
                                 <div class="spinner"></div>
                                 <span>Loading users...</span>
                             </td>
@@ -150,7 +167,7 @@
         <div class="tab-content" id="adminTabContent">
             <div class="content-header">
                 <h1>Admin Panel</h1>
-                <p class="subtitle">Add new books and manage library settings</p>
+                <p class="subtitle">Manage books, users, and library operations</p>
             </div>
             
             <div class="admin-sections">
@@ -167,6 +184,11 @@
                             <label for="bookAuthor">Author</label>
                             <input type="text" id="bookAuthor" placeholder="Enter author name" required>
                         </div>
+
+                        <div class="form-group">
+                            <label for="bookCopies">Number of Copies</label>
+                            <input type="number" id="bookCopies" placeholder="1" min="1" value="1" required>
+                        </div>
                         
                         <button type="submit" class="btn btn-primary">
                             <span class="btn-text">Add Book</span>
@@ -177,13 +199,114 @@
                     </form>
                 </div>
                 
-                <!-- All Borrowed Books Section -->
+                <!-- Book Management Section -->
                 <div class="admin-card">
-                    <h2>All Borrowed Books</h2>
-                    <div class="all-borrowed-list" id="allBorrowedList">
+                    <h2>Book Management</h2>
+                    <div class="book-management" id="bookManagement">
+                        <input type="text" id="manageBookSearch" placeholder="Search books to manage..." class="search-input">
+                        <div class="manage-books-list" id="manageBooksList">
+                            <div class="loading-state">
+                                <div class="spinner"></div>
+                                <p>Loading books...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Borrows Section -->
+                <div class="admin-card">
+                    <h2>Current Borrows</h2>
+                    <div class="current-borrows" id="currentBorrows">
                         <div class="loading-state">
                             <div class="spinner"></div>
                             <p>Loading borrowed books...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overdue Books Section -->
+                <div class="admin-card">
+                    <h2>Overdue Books</h2>
+                    <div class="overdue-books" id="overdueBooks">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Loading overdue books...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab (Admin Only) -->
+        <div class="tab-content" id="reportsTabContent">
+            <div class="content-header">
+                <h1>Reports & Analytics</h1>
+                <p class="subtitle">Library statistics and performance metrics</p>
+            </div>
+            
+            <div class="reports-grid">
+                <!-- Quick Stats -->
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="totalBooks">-</span>
+                            <span class="stat-label">Total Books</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="totalUsers">-</span>
+                            <span class="stat-label">Total Users</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="activeBorrows">-</span>
+                            <span class="stat-label">Active Borrows</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12,6 12,12 16,14"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="overdueCount">-</span>
+                            <span class="stat-label">Overdue Books</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Most Popular Books -->
+                <div class="report-card">
+                    <h3>Most Popular Books</h3>
+                    <div class="popular-books" id="popularBooks">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Loading popular books...</p>
                         </div>
                     </div>
                 </div>
@@ -214,6 +337,9 @@
                     </div>
                     <div class="book-details">
                         <h3 id="modalBookAuthor">Author</h3>
+                        <div class="book-copies">
+                            <span id="modalCopiesInfo">Available: 0/0</span>
+                        </div>
                         <div class="book-status">
                             <span class="status-badge" id="modalBookStatus">Available</span>
                         </div>
@@ -229,6 +355,95 @@
                         <div class="spinner"></div>
                     </div>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management Modal -->
+    <div class="modal-overlay hidden" id="userModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalUserName">User Details</h2>
+                <button class="modal-close" id="closeUserModalBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="user-details-info">
+                    <p><strong>Email:</strong> <span id="modalUserEmail">-</span></p>
+                    <p><strong>Role:</strong> <span id="modalUserRole">-</span></p>
+                    <p><strong>User ID:</strong> <span id="modalUserId">-</span></p>
+                </div>
+                
+                <div class="user-actions">
+                    <div class="role-change">
+                        <label for="newUserRole">Change Role:</label>
+                        <select id="newUserRole">
+                            <option value="member">Member</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button class="btn btn-secondary" id="changeRoleBtn">Update Role</button>
+                    </div>
+                </div>
+
+                <div class="user-borrows">
+                    <h4>Active Borrows</h4>
+                    <div id="userActiveBorrows">Loading...</div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="deleteUserBtn">Delete User</button>
+                <button class="btn btn-secondary" id="cancelUserModal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Book Management Modal -->
+    <div class="modal-overlay hidden" id="manageBookModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="manageModalBookTitle">Manage Book</h2>
+                <button class="modal-close" id="closeManageBookModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="manage-book-info">
+                    <p><strong>Author:</strong> <span id="manageModalBookAuthor">-</span></p>
+                    <p><strong>Book ID:</strong> <span id="manageModalBookId">-</span></p>
+                    <p><strong>Total Copies:</strong> <span id="manageModalTotalCopies">-</span></p>
+                    <p><strong>Available:</strong> <span id="manageModalAvailableCopies">-</span></p>
+                    <p><strong>Borrowed:</strong> <span id="manageModalBorrowedCopies">-</span></p>
+                </div>
+                
+                <div class="copy-management">
+                    <div class="copy-actions">
+                        <div class="form-group">
+                            <label for="copiesToAdd">Add Copies:</label>
+                            <input type="number" id="copiesToAdd" min="1" value="1">
+                            <button class="btn btn-success" id="addCopiesBtn">Add Copies</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="copiesToRemove">Remove Copies:</label>
+                            <input type="number" id="copiesToRemove" min="1" value="1">
+                            <button class="btn btn-danger" id="removeCopiesBtn">Remove Copies</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelManageBookModal">Close</button>
             </div>
         </div>
     </div>
