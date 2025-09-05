@@ -1,0 +1,75 @@
+# 📋 Frontend Roadmap for Library Management System
+
+## 🔑 Phase 1: Setup & Auth
+
+* [ ] Create **file structure** (`index.html`, `user.html`, `admin.html`, `css/`, `js/`).
+* [ ] Build **index.html** with login + register forms.
+* [ ] Write `api.js` → handles all API requests with JWT (`fetch` wrapper).
+* [ ] Write `auth.js`:
+
+  * [ ] Register user.
+  * [ ] Login user → save token.
+  * [ ] Get `/auth/me` → redirect to correct page (`user.html` or `admin.html`).
+* [ ] Add logout logic (clear `localStorage`).
+
+---
+
+## 👤 Phase 2: User Features
+
+* [ ] Create **user.html** layout (navbar, available books, my borrows).
+* [ ] Write `user.js`:
+
+  * [ ] Role check → block admin from user page.
+  * [ ] Load all books (`/books`).
+  * [ ] Borrow book (`/borrow/{book_id}`).
+  * [ ] Load my borrows (`/borrow/my-borrows`).
+  * [ ] Return book (`/borrow/{borrow_id}/return`).
+* [ ] Show borrow details (book title, author, borrowed date, returned date).
+* [ ] Add UI feedback (disable “Borrow” if no copies left).
+
+---
+
+## 👨‍💼 Phase 3: Admin Features
+
+* [ ] Create **admin.html** layout (Books, Users, Stats).
+* [ ] Write `admin.js`:
+
+  * [ ] Role check → block non-admins from admin page.
+  * [ ] **Books:** Add new book, add/remove copies, list all books.
+  * [ ] **Users:** List users, change role, delete users.
+  * [ ] **Borrows:** View all borrows, force return a book.
+  * [ ] **Overdue:** View overdue books list with borrower details.
+  * [ ] **Stats:** Load `/users/stats/summary` (total users, active borrowers, admins vs members).
+
+---
+
+## 🎨 Phase 4: UI/UX Improvements
+
+* [ ] Create **shared CSS** (`style.css` or `dashboard.css`).
+* [ ] Add separate styles for `auth.css`, `admin.css`, `user.css`.
+* [ ] Make responsive (mobile & desktop friendly).
+* [ ] Add loading spinners during API calls.
+* [ ] Add error handling (e.g., expired token → redirect to login).
+* [ ] Add search/filter for books (by title/author).
+
+---
+
+## 📊 Phase 5: Extras (Optional but Nice)
+
+* [ ] Add **profile.html** (show user info, maybe edit password).
+* [ ] Show **borrow history** (all returned books).
+* [ ] Add **overdue warning** for users on `user.html`.
+* [ ] Export **admin stats** to CSV/Excel.
+* [ ] Add a **dark mode toggle** 🌙.
+
+---
+
+## 🚀 Final Flow
+
+1. User registers/login at `index.html`.
+2. JWT saved in browser.
+3. Role decides redirect → user or admin dashboard.
+4. Users can borrow/return & see history.
+5. Admins can manage everything (books, users, stats, overdue).
+
+---

@@ -1,0 +1,21 @@
+frontend/
+│── index.html              # Home / Login / Register landing page
+│── dashboard.html          # User dashboard (books, borrows)
+│── admin.html              # Admin dashboard (users, book management, stats)
+│
+├── css/
+│   ├── style.css           # Main stylesheet
+│   ├── auth.css            # Login/Register styles
+│   ├── dashboard.css       # Dashboard specific styles
+│   └── admin.css           # Admin page styles
+│
+├── js/
+│   ├── api.js              # Handles API requests (fetch wrapper with JWT)
+│   ├── auth.js             # Login & Register logic
+│   ├── dashboard.js        # Book list, borrow/return handling
+│   ├── admin.js            # Admin-only logic (manage users/books/stats)
+│   └── utils.js            # Helpers (form validation, localStorage helpers)
+│
+└── assets/
+    ├── logo.png
+    └── icons/              # Any icons/images

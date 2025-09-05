@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <nav>
+    <h2>Library Admin Dashboard</h2>
+    <button id="logoutBtn">Logout</button>
+  </nav>
+
+  <main>
+    <!-- Book Management -->
+    <section id="books-section">
+      <h3>📚 Book Management</h3>
+      <form id="addBookForm">
+        <input type="text" id="bookTitle" placeholder="Book Title" required>
+        <input type="text" id="bookAuthor" placeholder="Author" required>
+        <input type="number" id="bookCopies" placeholder="Copies" min="1" value="1" required>
+        <button type="submit">Add Book</button>
+      </form>
+      <div id="bookList"></div>
+    </section>
+
+    <!-- User Management -->
+    <section id="users-section">
+      <h3>👥 User Management</h3>
+      <div id="userList"></div>
+    </section>
+
+    <!-- Stats -->
+    <section id="stats-section">
+      <h3>📊 System Stats</h3>
+      <div id="stats"></div>
+      <h4>Overdue Books</h4>
+      <div id="overdueList"></div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
