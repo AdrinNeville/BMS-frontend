@@ -14,7 +14,6 @@ const tabContents = document.querySelectorAll('.tab-content');
 const booksGrid = document.getElementById('booksGrid');
 const borrowedBooksList = document.getElementById('borrowedBooksList');
 const usersTableBody = document.getElementById('usersTableBody');
-const allBorrowedList = document.getElementById('allBorrowedList');
 const searchBooks = document.getElementById('searchBooks');
 const addBookForm = document.getElementById('addBookForm');
 
@@ -23,6 +22,7 @@ const bookModal = document.getElementById('bookModal');
 const modalBookTitle = document.getElementById('modalBookTitle');
 const modalBookAuthor = document.getElementById('modalBookAuthor');
 const modalBookStatus = document.getElementById('modalBookStatus');
+const modalCopiesInfo = document.getElementById('modalCopiesInfo');
 const borrowBookBtn = document.getElementById('borrowBookBtn');
 const closeModal = document.getElementById('closeModal');
 const cancelModal = document.getElementById('cancelModal');
@@ -136,12 +136,22 @@ function updateUserUI(user) {
 function setupEventListeners() {
     // Navigation
     navItems.forEach(item => {
-        item.addEventListener('click', () => switchTab(item.dataset.tab));
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Tab clicked:', item.dataset.tab);
+            switchTab(item.dataset.tab);
+        });
     });
     
-    // Search
+    // Search functionality
     if (searchBooks) {
         searchBooks.addEventListener('input', debounce(handleSearch, 300));
+    }
+    
+    // Availability filter
+    const availabilityFilter = document.getElementById('availabilityFilter');
+    if (availabilityFilter) {
+        availabilityFilter.addEventListener('change', handleAvailabilityFilter);
     }
     
     // Modal
@@ -170,20 +180,85 @@ function setupEventListeners() {
     
     // Keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
+
+    // Admin section event listeners
+    setupAdminEventListeners();
 }
 
-// Tab switching
+// Setup admin-specific event listeners
+function setupAdminEventListeners() {
+    // Manage book search
+    const manageBookSearch = document.getElementById('manageBookSearch');
+    if (manageBookSearch) {
+        manageBookSearch.addEventListener('input', debounce(handleManageBookSearch, 300));
+    }
+
+    // User modals
+    const closeUserModalBtn = document.getElementById('closeUserModalBtn');
+    const cancelUserModal = document.getElementById('cancelUserModal');
+    const changeRoleBtn = document.getElementById('changeRoleBtn');
+    const deleteUserBtn = document.getElementById('deleteUserBtn');
+
+    if (closeUserModalBtn) closeUserModalBtn.addEventListener('click', closeUserModal);
+    if (cancelUserModal) cancelUserModal.addEventListener('click', closeUserModal);
+    if (changeRoleBtn) changeRoleBtn.addEventListener('click', handleChangeUserRole);
+    if (deleteUserBtn) deleteUserBtn.addEventListener('click', handleDeleteUser);
+
+    // Book management modals
+    const closeManageBookModal = document.getElementById('closeManageBookModal');
+    const cancelManageBookModal = document.getElementById('cancelManageBookModal');
+    const addCopiesBtn = document.getElementById('addCopiesBtn');
+    const removeCopiesBtn = document.getElementById('removeCopiesBtn');
+
+    if (closeManageBookModal) closeManageBookModal.addEventListener('click', closeManageBookModal);
+    if (cancelManageBookModal) cancelManageBookModal.addEventListener('click', closeManageBookModal);
+    if (addCopiesBtn) addCopiesBtn.addEventListener('click', handleAddCopies);
+    if (removeCopiesBtn) removeCopiesBtn.addEventListener('click', handleRemoveCopies);
+}
+
+// Tab switching - FIXED
 function switchTab(tabName) {
+    console.log('Switching to tab:', tabName);
     currentTab = tabName;
     
     // Update navigation
     navItems.forEach(item => {
-        item.classList.toggle('active', item.dataset.tab === tabName);
+        if (item.dataset.tab === tabName) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
     });
     
-    // Update content
+    // Update content - FIXED the tab mapping
     tabContents.forEach(content => {
-        content.classList.toggle('active', content.id === `${tabName}Tab` || content.id === `${tabName}TabContent`);
+        // Map tab names to their corresponding content IDs
+        let targetId;
+        switch (tabName) {
+            case 'books':
+                targetId = 'booksTab';
+                break;
+            case 'borrowed':
+                targetId = 'borrowedBooksTab'; // Fixed mapping
+                break;
+            case 'users':
+                targetId = 'usersTabContent';
+                break;
+            case 'admin':
+                targetId = 'adminTabContent';
+                break;
+            case 'reports':
+                targetId = 'reportsTabContent';
+                break;
+            default:
+                targetId = tabName + 'Tab';
+        }
+        
+        if (content.id === targetId) {
+            content.classList.add('active');
+        } else {
+            content.classList.remove('active');
+        }
     });
     
     // Load tab data
@@ -201,7 +276,7 @@ async function loadInitialData() {
         if (currentUser && currentUser.role === 'admin') {
             await Promise.all([
                 loadUsers(),
-                loadAllBorrowedBooks()
+                loadAdminData()
             ]);
         }
     } catch (error) {
@@ -212,6 +287,7 @@ async function loadInitialData() {
 
 // Load tab-specific data
 function loadTabData(tabName) {
+    console.log('Loading data for tab:', tabName);
     switch (tabName) {
         case 'books':
             if (allBooks.length === 0) loadBooks();
@@ -223,7 +299,10 @@ function loadTabData(tabName) {
             if (currentUser && currentUser.role === 'admin') loadUsers();
             break;
         case 'admin':
-            if (currentUser && currentUser.role === 'admin') loadAllBorrowedBooks();
+            if (currentUser && currentUser.role === 'admin') loadAdminData();
+            break;
+        case 'reports':
+            if (currentUser && currentUser.role === 'admin') loadReportsData();
             break;
     }
 }
@@ -231,14 +310,14 @@ function loadTabData(tabName) {
 // Load books
 async function loadBooks() {
     try {
-        showLoading(booksGrid);
+        if (booksGrid) showLoading(booksGrid);
         const books = await makeAPIRequest('/books/');
         allBooks = Array.isArray(books) ? books : [];
         renderBooks(allBooks);
     } catch (error) {
         console.error('Failed to load books:', error);
         showError('Failed to load books. Please try again.');
-        renderBooksError();
+        if (booksGrid) renderBooksError();
     }
 }
 
@@ -261,7 +340,6 @@ function renderBooks(books) {
     }
     
     booksGrid.innerHTML = books.map(book => {
-        // Handle both old and new book data formats
         const availableCopies = book.available_copies || (book.available ? 1 : 0);
         const totalCopies = book.total_copies || 1;
         const isAvailable = availableCopies > 0;
@@ -305,23 +383,51 @@ function renderBooksError() {
     `;
 }
 
-// Load borrowed books
+// Load borrowed books - ENHANCED
 async function loadBorrowedBooks() {
     try {
-        showLoading(borrowedBooksList);
+        if (borrowedBooksList) showLoading(borrowedBooksList);
         const borrowed = await makeAPIRequest('/borrow/my-borrows');
         borrowedBooks = Array.isArray(borrowed) ? borrowed : [];
+        console.log('Loaded borrowed books:', borrowedBooks);
+        
+        // If we have borrowed books, enhance them with book details
+        if (borrowedBooks.length > 0) {
+            await enhanceBorrowedBooksWithDetails();
+        }
+        
         renderBorrowedBooks(borrowedBooks);
     } catch (error) {
         console.error('Failed to load borrowed books:', error);
         showError('Failed to load borrowed books. Please try again.');
-        renderBorrowedBooksError();
+        if (borrowedBooksList) renderBorrowedBooksError();
     }
 }
 
-// Render borrowed books
+// Enhance borrowed books with full book details
+async function enhanceBorrowedBooksWithDetails() {
+    for (let borrow of borrowedBooks) {
+        if (borrow.book_id && !borrow.book) {
+            try {
+                const bookDetails = await makeAPIRequest(`/books/${borrow.book_id}`);
+                borrow.book = bookDetails;
+            } catch (error) {
+                console.warn(`Failed to fetch details for book ${borrow.book_id}:`, error);
+                // Set fallback book info
+                borrow.book = {
+                    title: `Book ID: ${borrow.book_id}`,
+                    author: 'Unknown Author'
+                };
+            }
+        }
+    }
+}
+
+// Render borrowed books - ENHANCED
 function renderBorrowedBooks(borrowed) {
     if (!borrowedBooksList) return;
+    
+    console.log('Rendering borrowed books:', borrowed);
     
     if (borrowed.length === 0) {
         borrowedBooksList.innerHTML = `
@@ -338,7 +444,7 @@ function renderBorrowedBooks(borrowed) {
     }
     
     borrowedBooksList.innerHTML = borrowed.map(borrow => {
-        // Get book info - try to get from the borrow record first
+        // Get book info
         const bookTitle = borrow.book?.title || `Book ID: ${borrow.book_id}`;
         const bookAuthor = borrow.book?.author || 'Unknown Author';
         
@@ -357,7 +463,10 @@ function renderBorrowedBooks(borrowed) {
                 </div>
                 <div class="borrowed-book-meta">
                     <span>Borrowed: ${borrowDate}</span>
-                    ${isReturned ? `<span>Returned: ${returnDate}</span>` : '<span class="status-badge borrowed">Currently Borrowed</span>'}
+                    ${isReturned ? 
+                        `<span>Returned: ${returnDate}</span>` : 
+                        '<span class="status-badge borrowed">Currently Borrowed</span>'
+                    }
                 </div>
                 ${!isReturned ? `
                     <div class="borrowed-book-actions">
@@ -401,7 +510,7 @@ async function loadUsers() {
     } catch (error) {
         console.error('Failed to load users:', error);
         showError('Failed to load users. Please try again.');
-        renderUsersError();
+        if (usersTableBody) renderUsersError();
     }
 }
 
@@ -412,7 +521,7 @@ function renderUsers(users) {
     if (users.length === 0) {
         usersTableBody.innerHTML = `
             <tr>
-                <td colspan="4" style="text-align: center; padding: 40px; color: #6b7280;">
+                <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
                     No users found
                 </td>
             </tr>
@@ -429,8 +538,9 @@ function renderUsers(users) {
                     ${user.role || 'member'}
                 </span>
             </td>
+            <td>-</td>
             <td>
-                <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">
+                <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;" onclick="openUserModal('${user.id}')">
                     View Details
                 </button>
             </td>
@@ -444,80 +554,259 @@ function renderUsersError() {
     
     usersTableBody.innerHTML = `
         <tr>
-            <td colspan="4" style="text-align: center; padding: 40px; color: #ef4444;">
+            <td colspan="5" style="text-align: center; padding: 40px; color: #ef4444;">
                 Failed to load users. Please try again.
             </td>
         </tr>
     `;
 }
 
-// Load all borrowed books (admin only)
-async function loadAllBorrowedBooks() {
+// Load admin data
+async function loadAdminData() {
     try {
-        if (!allBorrowedList) return;
-        showLoading(allBorrowedList);
-        const allBorrowed = await makeAPIRequest('/borrow/all');
-        renderAllBorrowedBooks(Array.isArray(allBorrowed) ? allBorrowed : []);
+        await Promise.all([
+            loadManageBooks(),
+            loadCurrentBorrows(),
+            loadOverdueBooks()
+        ]);
     } catch (error) {
-        console.error('Failed to load all borrowed books:', error);
-        showError('Failed to load borrowed books data. Please try again.');
-        renderAllBorrowedError();
+        console.error('Failed to load admin data:', error);
     }
 }
 
-// Render all borrowed books
-function renderAllBorrowedBooks(borrowed) {
-    if (!allBorrowedList) return;
-    
-    if (borrowed.length === 0) {
-        allBorrowedList.innerHTML = `
+// Load books for management
+async function loadManageBooks() {
+    const manageBooksList = document.getElementById('manageBooksList');
+    if (!manageBooksList) return;
+
+    try {
+        showLoading(manageBooksList);
+        const books = await makeAPIRequest('/books/');
+        renderManageBooks(Array.isArray(books) ? books : []);
+    } catch (error) {
+        console.error('Failed to load books for management:', error);
+        manageBooksList.innerHTML = `
             <div class="empty-state">
-                <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                </svg>
-                <h3>No borrowed books</h3>
-                <p>No books are currently borrowed from the library.</p>
+                <h3>Failed to load books</h3>
+                <p>Please try again.</p>
+            </div>
+        `;
+    }
+}
+
+// Render books for management
+function renderManageBooks(books) {
+    const manageBooksList = document.getElementById('manageBooksList');
+    if (!manageBooksList) return;
+
+    if (books.length === 0) {
+        manageBooksList.innerHTML = `
+            <div class="empty-state">
+                <h3>No books found</h3>
+                <p>Add some books to manage them.</p>
             </div>
         `;
         return;
     }
-    
-    allBorrowedList.innerHTML = borrowed.map(borrow => {
+
+    manageBooksList.innerHTML = books.map(book => `
+        <div class="manage-book-item">
+            <div class="manage-book-info">
+                <h4>${escapeHtml(book.title || '')}</h4>
+                <p>by ${escapeHtml(book.author || 'Unknown')}</p>
+                <small>ID: ${book.id} | Copies: ${book.available_copies}/${book.total_copies}</small>
+            </div>
+            <div class="manage-book-actions">
+                <button class="btn btn-secondary" onclick="openManageBookModal(${book.id})">
+                    Manage Copies
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Load current borrows
+async function loadCurrentBorrows() {
+    const currentBorrows = document.getElementById('currentBorrows');
+    if (!currentBorrows) return;
+
+    try {
+        showLoading(currentBorrows);
+        const borrows = await makeAPIRequest('/borrow/all');
+        const activeBorrows = borrows.filter(b => !b.returned_at);
+        renderCurrentBorrows(activeBorrows);
+    } catch (error) {
+        console.error('Failed to load current borrows:', error);
+        currentBorrows.innerHTML = `
+            <div class="empty-state">
+                <h3>Failed to load current borrows</h3>
+                <p>Please try again.</p>
+            </div>
+        `;
+    }
+}
+
+// Render current borrows
+function renderCurrentBorrows(borrows) {
+    const currentBorrows = document.getElementById('currentBorrows');
+    if (!currentBorrows) return;
+
+    if (borrows.length === 0) {
+        currentBorrows.innerHTML = `
+            <div class="empty-state">
+                <h3>No active borrows</h3>
+                <p>No books are currently borrowed.</p>
+            </div>
+        `;
+        return;
+    }
+
+    currentBorrows.innerHTML = borrows.map(borrow => {
         const borrowDate = new Date(borrow.borrowed_at).toLocaleDateString();
-        const isReturned = !!borrow.returned_at;
-        const returnDate = isReturned ? new Date(borrow.returned_at).toLocaleDateString() : null;
-        
         return `
-            <div class="all-borrowed-item">
-                <div class="all-borrowed-info">
-                    <h4>Book ID: ${borrow.book_id}</h4>
-                    <p>User ID: ${borrow.user_id}</p>
+            <div class="current-borrow-item">
+                <div class="borrow-info">
+                    <strong>Book ID:</strong> ${borrow.book_id} | 
+                    <strong>User ID:</strong> ${borrow.user_id}
                 </div>
-                <div class="all-borrowed-meta">
-                    <div>Borrowed: ${borrowDate}</div>
-                    ${isReturned ? `<div>Returned: ${returnDate}</div>` : '<div class="status-badge borrowed">Active</div>'}
+                <div class="borrow-meta">
+                    <span>Borrowed: ${borrowDate}</span>
+                    <button class="btn btn-success" onclick="forceReturnBook('${borrow.id}')">
+                        Force Return
+                    </button>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-// Render all borrowed books error
-function renderAllBorrowedError() {
-    if (!allBorrowedList) return;
-    
-    allBorrowedList.innerHTML = `
-        <div class="empty-state">
-            <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <h3>Failed to load data</h3>
-            <p>There was an error loading the borrowed books data. Please refresh the page.</p>
+// Load overdue books
+async function loadOverdueBooks() {
+    const overdueBooks = document.getElementById('overdueBooks');
+    if (!overdueBooks) return;
+
+    try {
+        showLoading(overdueBooks);
+        const overdue = await makeAPIRequest('/borrow/overdue');
+        renderOverdueBooks(Array.isArray(overdue) ? overdue : []);
+    } catch (error) {
+        console.error('Failed to load overdue books:', error);
+        overdueBooks.innerHTML = `
+            <div class="empty-state">
+                <h3>Failed to load overdue books</h3>
+                <p>Please try again.</p>
+            </div>
+        `;
+    }
+}
+
+// Render overdue books
+function renderOverdueBooks(overdue) {
+    const overdueBooks = document.getElementById('overdueBooks');
+    if (!overdueBooks) return;
+
+    if (overdue.length === 0) {
+        overdueBooks.innerHTML = `
+            <div class="empty-state">
+                <h3>No overdue books</h3>
+                <p>All books are returned on time!</p>
+            </div>
+        `;
+        return;
+    }
+
+    overdueBooks.innerHTML = overdue.map(item => `
+        <div class="overdue-book-item">
+            <div class="overdue-info">
+                <h4>${escapeHtml(item.book_title || '')}</h4>
+                <p>by ${escapeHtml(item.book_author || 'Unknown')}</p>
+                <p><strong>User:</strong> ${escapeHtml(item.user_name || '')} (${escapeHtml(item.user_email || '')})</p>
+            </div>
+            <div class="overdue-meta">
+                <span class="days-overdue">${item.days_overdue} days overdue</span>
+                <button class="btn btn-danger" onclick="forceReturnBook('${item.borrow_id}')">
+                    Force Return
+                </button>
+            </div>
         </div>
-    `;
+    `).join('');
+}
+
+// Load reports data
+async function loadReportsData() {
+    try {
+        await Promise.all([
+            loadStatsSummary(),
+            loadPopularBooks()
+        ]);
+    } catch (error) {
+        console.error('Failed to load reports data:', error);
+    }
+}
+
+// Load stats summary
+async function loadStatsSummary() {
+    try {
+        const [booksStats, userStats, borrowStats] = await Promise.all([
+            makeAPIRequest('/books/'),
+            makeAPIRequest('/users/stats/summary'),
+            makeAPIRequest('/borrow/all')
+        ]);
+
+        // Update stats cards
+        document.getElementById('totalBooks').textContent = booksStats.length || 0;
+        document.getElementById('totalUsers').textContent = userStats.total_users || 0;
+        
+        const activeBorrows = borrowStats.filter(b => !b.returned_at).length;
+        document.getElementById('activeBorrows').textContent = activeBorrows;
+
+        const overdue = await makeAPIRequest('/borrow/overdue');
+        document.getElementById('overdueCount').textContent = overdue.length || 0;
+    } catch (error) {
+        console.error('Failed to load stats summary:', error);
+    }
+}
+
+// Load popular books
+async function loadPopularBooks() {
+    const popularBooks = document.getElementById('popularBooks');
+    if (!popularBooks) return;
+
+    try {
+        showLoading(popularBooks);
+        const books = await makeAPIRequest('/books/');
+        // For now, just show first 5 books as popular
+        // In a real system, you'd have borrow count data
+        const topBooks = books.slice(0, 5);
+        
+        if (topBooks.length === 0) {
+            popularBooks.innerHTML = `
+                <div class="empty-state">
+                    <h3>No books available</h3>
+                </div>
+            `;
+            return;
+        }
+
+        popularBooks.innerHTML = topBooks.map(book => `
+            <div class="popular-book-item">
+                <div class="book-info">
+                    <h4>${escapeHtml(book.title || '')}</h4>
+                    <p>by ${escapeHtml(book.author || 'Unknown')}</p>
+                </div>
+                <div class="book-stats">
+                    <span>Copies: ${book.available_copies}/${book.total_copies}</span>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load popular books:', error);
+        popularBooks.innerHTML = `
+            <div class="empty-state">
+                <h3>Failed to load popular books</h3>
+            </div>
+        `;
+    }
 }
 
 // Open book modal
@@ -530,16 +819,19 @@ function openBookModal(bookId) {
     if (modalBookTitle) modalBookTitle.textContent = book.title || 'Unknown Title';
     if (modalBookAuthor) modalBookAuthor.textContent = `by ${book.author || 'Unknown Author'}`;
     
-    // Handle both old and new book data formats
     const availableCopies = book.available_copies || (book.available ? 1 : 0);
+    const totalCopies = book.total_copies || 1;
     const isAvailable = availableCopies > 0;
+    
+    if (modalCopiesInfo) {
+        modalCopiesInfo.textContent = `Available: ${availableCopies}/${totalCopies}`;
+    }
     
     if (modalBookStatus) {
         modalBookStatus.textContent = isAvailable ? 'Available' : 'Not Available';
         modalBookStatus.className = `status-badge ${isAvailable ? 'available' : 'borrowed'}`;
     }
     
-    // Update borrow button
     if (borrowBookBtn) {
         borrowBookBtn.disabled = !isAvailable;
         borrowBookBtn.innerHTML = `
@@ -608,11 +900,43 @@ async function returnBook(borrowId) {
         await loadBooks();
         await loadBorrowedBooks();
         if (currentUser && currentUser.role === 'admin') {
-            await loadAllBorrowedBooks();
+            await loadCurrentBorrows();
+            await loadOverdueBooks();
         }
         
     } catch (error) {
         console.error('Failed to return book:', error);
+        showError(error.message || 'Failed to return book. Please try again.');
+    } finally {
+        setButtonLoading(button, false);
+    }
+}
+
+// Force return book (admin only)
+async function forceReturnBook(borrowId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showError('Admin access required');
+        return;
+    }
+
+    const button = event.target.closest('button');
+    
+    try {
+        setButtonLoading(button, true);
+        
+        await makeAPIRequest(`/borrow/admin/${borrowId}/force-return`, {
+            method: 'PATCH'
+        });
+        
+        showSuccess('Book returned successfully by admin!');
+        
+        // Refresh admin data
+        await loadBooks();
+        await loadCurrentBorrows();
+        await loadOverdueBooks();
+        
+    } catch (error) {
+        console.error('Failed to force return book:', error);
         showError(error.message || 'Failed to return book. Please try again.');
     } finally {
         setButtonLoading(button, false);
@@ -625,6 +949,7 @@ async function handleAddBook(e) {
     
     const titleInput = document.getElementById('bookTitle');
     const authorInput = document.getElementById('bookAuthor');
+    const copiesInput = document.getElementById('bookCopies');
     
     if (!titleInput || !authorInput) {
         showError('Form fields not found.');
@@ -633,10 +958,11 @@ async function handleAddBook(e) {
     
     const title = titleInput.value.trim();
     const author = authorInput.value.trim();
+    const copies = copiesInput ? parseInt(copiesInput.value) || 1 : 1;
     const submitBtn = addBookForm.querySelector('button[type="submit"]');
     
     if (!title || !author) {
-        showError('Please fill in all fields.');
+        showError('Please fill in all required fields.');
         return;
     }
     
@@ -645,7 +971,7 @@ async function handleAddBook(e) {
         
         await makeAPIRequest('/books/', {
             method: 'POST',
-            body: JSON.stringify({ title, author, total_copies: 1 })
+            body: JSON.stringify({ title, author, total_copies: copies })
         });
         
         showSuccess('Book added successfully!');
@@ -653,6 +979,9 @@ async function handleAddBook(e) {
         
         // Refresh books
         await loadBooks();
+        if (currentUser && currentUser.role === 'admin') {
+            await loadManageBooks();
+        }
         
     } catch (error) {
         console.error('Failed to add book:', error);
@@ -679,6 +1008,180 @@ function handleSearch() {
     );
     
     renderBooks(filteredBooks);
+}
+
+// Handle availability filter
+function handleAvailabilityFilter() {
+    const availabilityFilter = document.getElementById('availabilityFilter');
+    if (!availabilityFilter) return;
+    
+    const filterValue = availabilityFilter.value;
+    let filteredBooks;
+    
+    switch (filterValue) {
+        case 'available':
+            filteredBooks = allBooks.filter(book => 
+                (book.available_copies || 0) > 0
+            );
+            break;
+        case 'borrowed':
+            filteredBooks = allBooks.filter(book => 
+                (book.available_copies || 0) === 0
+            );
+            break;
+        default:
+            filteredBooks = allBooks;
+    }
+    
+    renderBooks(filteredBooks);
+}
+
+// Handle manage book search
+function handleManageBookSearch() {
+    const manageBookSearch = document.getElementById('manageBookSearch');
+    if (!manageBookSearch) return;
+    
+    const query = manageBookSearch.value.toLowerCase().trim();
+    
+    if (!query) {
+        loadManageBooks();
+        return;
+    }
+    
+    const filteredBooks = allBooks.filter(book => 
+        (book.title || '').toLowerCase().includes(query) || 
+        (book.author || '').toLowerCase().includes(query)
+    );
+    
+    renderManageBooks(filteredBooks);
+}
+
+// User modal functions
+function openUserModal(userId) {
+    // Implementation for user modal
+    console.log('Opening user modal for:', userId);
+}
+
+function closeUserModal() {
+    const userModal = document.getElementById('userModal');
+    if (userModal) {
+        userModal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+function handleChangeUserRole() {
+    console.log('Changing user role');
+}
+
+function handleDeleteUser() {
+    console.log('Deleting user');
+}
+
+// Book management modal functions
+function openManageBookModal(bookId) {
+    const manageBookModal = document.getElementById('manageBookModal');
+    const book = allBooks.find(b => b.id === bookId);
+    
+    if (!book || !manageBookModal) return;
+    
+    // Populate modal with book data
+    document.getElementById('manageModalBookTitle').textContent = book.title || 'Unknown';
+    document.getElementById('manageModalBookAuthor').textContent = book.author || 'Unknown';
+    document.getElementById('manageModalBookId').textContent = book.id;
+    document.getElementById('manageModalTotalCopies').textContent = book.total_copies || 1;
+    document.getElementById('manageModalAvailableCopies').textContent = book.available_copies || 0;
+    document.getElementById('manageModalBorrowedCopies').textContent = book.borrowed_copies || 0;
+    
+    // Store book ID for actions
+    manageBookModal.dataset.bookId = bookId;
+    
+    manageBookModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeManageBookModal() {
+    const manageBookModal = document.getElementById('manageBookModal');
+    if (manageBookModal) {
+        manageBookModal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+async function handleAddCopies() {
+    const manageBookModal = document.getElementById('manageBookModal');
+    const copiesToAddInput = document.getElementById('copiesToAdd');
+    const addCopiesBtn = document.getElementById('addCopiesBtn');
+    
+    if (!manageBookModal || !copiesToAddInput) return;
+    
+    const bookId = manageBookModal.dataset.bookId;
+    const copiesToAdd = parseInt(copiesToAddInput.value) || 1;
+    
+    if (copiesToAdd <= 0) {
+        showError('Number of copies must be positive');
+        return;
+    }
+    
+    try {
+        setButtonLoading(addCopiesBtn, true);
+        
+        await makeAPIRequest(`/books/${bookId}/add-copies?copies=${copiesToAdd}`, {
+            method: 'PATCH'
+        });
+        
+        showSuccess(`Added ${copiesToAdd} copies successfully!`);
+        copiesToAddInput.value = '1';
+        
+        // Refresh data and close modal
+        await loadBooks();
+        await loadManageBooks();
+        closeManageBookModal();
+        
+    } catch (error) {
+        console.error('Failed to add copies:', error);
+        showError(error.message || 'Failed to add copies. Please try again.');
+    } finally {
+        setButtonLoading(addCopiesBtn, false);
+    }
+}
+
+async function handleRemoveCopies() {
+    const manageBookModal = document.getElementById('manageBookModal');
+    const copiesToRemoveInput = document.getElementById('copiesToRemove');
+    const removeCopiesBtn = document.getElementById('removeCopiesBtn');
+    
+    if (!manageBookModal || !copiesToRemoveInput) return;
+    
+    const bookId = manageBookModal.dataset.bookId;
+    const copiesToRemove = parseInt(copiesToRemoveInput.value) || 1;
+    
+    if (copiesToRemove <= 0) {
+        showError('Number of copies must be positive');
+        return;
+    }
+    
+    try {
+        setButtonLoading(removeCopiesBtn, true);
+        
+        await makeAPIRequest(`/books/${bookId}/remove-copies?copies=${copiesToRemove}`, {
+            method: 'PATCH'
+        });
+        
+        showSuccess(`Removed ${copiesToRemove} copies successfully!`);
+        copiesToRemoveInput.value = '1';
+        
+        // Refresh data and close modal
+        await loadBooks();
+        await loadManageBooks();
+        closeManageBookModal();
+        
+    } catch (error) {
+        console.error('Failed to remove copies:', error);
+        showError(error.message || 'Failed to remove copies. Please try again.');
+    } finally {
+        setButtonLoading(removeCopiesBtn, false);
+    }
 }
 
 // Handle logout
@@ -711,11 +1214,19 @@ function handleKeyboardShortcuts(e) {
                     switchTab('admin');
                 }
                 break;
+            case '5':
+                if (currentUser && currentUser.role === 'admin') {
+                    e.preventDefault();
+                    switchTab('reports');
+                }
+                break;
         }
     }
     
     if (e.key === 'Escape') {
         closeBookModal();
+        closeUserModal();
+        closeManageBookModal();
     }
 }
 
@@ -753,7 +1264,7 @@ function showLoadingTable(tbody) {
     
     tbody.innerHTML = `
         <tr class="loading-row">
-            <td colspan="4">
+            <td colspan="5">
                 <div class="spinner"></div>
                 <span>Loading...</span>
             </td>
@@ -771,7 +1282,10 @@ function showError(message) {
 
 function showNotification(message, type) {
     const notification = document.getElementById('notification');
-    if (!notification) return;
+    if (!notification) {
+        console.log(`${type.toUpperCase()}: ${message}`);
+        return;
+    }
     
     const messageEl = notification.querySelector('.notification-message');
     const closeBtn = notification.querySelector('.notification-close');
