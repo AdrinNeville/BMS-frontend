@@ -208,8 +208,6 @@ function setupAdminEventListeners() {
 
     if (closeUserModalBtn) closeUserModalBtn.addEventListener('click', closeUserModal);
     if (cancelUserModal) cancelUserModal.addEventListener('click', closeUserModal);
-    if (changeRoleBtn) changeRoleBtn.addEventListener('click', handleChangeUserRole);
-    if (deleteUserBtn) deleteUserBtn.addEventListener('click', handleDeleteUser);
 
     // Book management modals
     const closeManageBookModal = document.getElementById('closeManageBookModal');
@@ -989,51 +987,82 @@ function openUserModal(userId) {
     userModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 
-    // 2. Find user data (assuming you have allUsers in memory)
-    const user = allUsers.find(u => u.id === userId);
+    // 2. Find user data
+    const user = allUsers.find(u => u.id === userId || u._id === userId);
     if (!user) {
         console.error('User not found:', userId);
         return;
     }
 
-    // 3. Populate modal content (example fields)
-    userModal.getElementById('modalUserName').textContent = user.name || 'N/A';
-    userModal.getElementById('modalUserEmail').textContent = user.email || 'N/A';
-    userModal.getElementById('modalUserRole').textContent = user.role || 'member';
+    // 3. Populate modal content
+    document.getElementById('modalUserName').textContent = user.name || 'N/A';
+    document.getElementById('modalUserEmail').textContent = user.email || 'N/A';
+    document.getElementById('modalUserRole').textContent = user.role || 'member';
+    document.getElementById('modalUserId').textContent = user.id || user._id || 'N/A';
+
+    // 4. Set current role in dropdown
+    const roleSelect = document.getElementById('newUserRole');
+    roleSelect.value = user.role || 'member';
+
+    // 5. Bind role change button
+    document.getElementById('changeRoleBtn').onclick = () => {
+    const userId = document.getElementById("modalUserId").textContent;
+    const newRole = document.getElementById("newUserRole").value;
+    handleChangeUserRole(userId, newRole);
+};
+
+
+    // 6. Bind delete button
+    document.getElementById('deleteUserBtn').onclick = () => {
+        handleDeleteUser(user.id || user._id);
+    };
+
+    // 7. Bind close buttons
+    document.getElementById('cancelUserModal').onclick = closeUserModal;
+    document.getElementById('closeUserModalBtn').onclick = closeUserModal;
 
     console.log('Opened user modal for:', userId);
 }
 
-
 async function handleChangeUserRole(userId, newRole) {
-    try {
-        console.log(`Changing role for user ${userId} to ${newRole}`);
+    console.log(`Changing role for user ${userId} to ${newRole}`);
 
-        const response = await fetch(`/users/${userId}/role?new_role=${newRole}`, {
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/${userId}/role?new_role=${newRole}`, {
             method: "PATCH",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}` // use your token helper
+                "Authorization": `Bearer ${getToken()}`
             }
         });
 
+        let data;
         if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || "Failed to update role");
+            // Try parsing as JSON error first
+            try {
+                const err = await response.json();
+                throw new Error(err.detail || "Failed to update role");
+            } catch {
+                // Fallback to raw text if not JSON
+                const text = await response.text();
+                throw new Error(text || "Failed to update role");
+            }
+        } else {
+            data = await response.json();
         }
 
-        const data = await response.json();
+        // ✅ Update local cache and re-render users table
+        if (typeof allUsers !== "undefined") {
+            allUsers = allUsers.map(user =>
+                user.id === userId ? { ...user, role: newRole } : user
+            );
+            renderUsers(allUsers);
+        }
 
-        // Update local copy of allUsers (if you’re storing them)
-        allUsers = allUsers.map(user =>
-            user.id === userId ? { ...user, role: newRole } : user
-        );
-
-        // Re-render the users table
-        renderUsers(allUsers);
-
-        alert(data.message);
+        // ✅ User + dev feedback
+        alert(data.message || "Role updated successfully");
         console.log("Role updated successfully:", data);
+
     } catch (error) {
         console.error("Error changing user role:", error);
         alert(`Error: ${error.message}`);
@@ -1048,7 +1077,7 @@ async function handleDeleteUser(userId) {
     try {
         console.log(`Deleting user ${userId}`);
 
-        const response = await fetch(`/users/${userId}`, {
+        const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
             method: "DELETE",
             headers: {
                 "Authorization": `Bearer ${getToken()}`
@@ -1063,7 +1092,8 @@ async function handleDeleteUser(userId) {
         const data = await response.json();
 
         // Remove from local allUsers
-        allUsers = allUsers.filter(user => user.id !== userId);
+        allUsers = allUsers.filter(user => (user.id || user._id) !== userId);
+
 
         // Re-render the users table
         renderUsers(allUsers);
