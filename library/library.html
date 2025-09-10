@@ -56,13 +56,6 @@
                     <span>Admin</span>
                 </button>
 
-                <button class="nav-item admin-only hidden" data-tab="reports" id="reportsTab">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 3v18h18"/>
-                        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
-                    </svg>
-                    <span>Reports</span>
-                </button>
             </div>
             
             <div class="nav-user">
@@ -148,7 +141,6 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Role</th>
-                            <th>Active Borrows</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -237,82 +229,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Reports Tab (Admin Only) -->
-        <div class="tab-content" id="reportsTabContent">
-            <div class="content-header">
-                <h1>Reports & Analytics</h1>
-                <p class="subtitle">Library statistics and performance metrics</p>
-            </div>
-            
-            <div class="reports-grid">
-                <!-- Quick Stats -->
-                <div class="stats-cards">
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-value" id="totalBooks">-</span>
-                            <span class="stat-label">Total Books</span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                <circle cx="9" cy="7" r="4"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-value" id="totalUsers">-</span>
-                            <span class="stat-label">Total Users</span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-value" id="activeBorrows">-</span>
-                            <span class="stat-label">Active Borrows</span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"/>
-                                <polyline points="12,6 12,12 16,14"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-value" id="overdueCount">-</span>
-                            <span class="stat-label">Overdue Books</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Most Popular Books -->
-                <div class="report-card">
-                    <h3>Most Popular Books</h3>
-                    <div class="popular-books" id="popularBooks">
-                        <div class="loading-state">
-                            <div class="spinner"></div>
-                            <p>Loading popular books...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </main>
 
     <!-- Book Details Modal -->
@@ -384,8 +300,8 @@
                     <div class="role-change">
                         <label for="newUserRole">Change Role:</label>
                         <select id="newUserRole">
-                            <option value="member">Member</option>
-                            <option value="admin">Admin</option>
+                            <option value="member">member</option>
+                            <option value="admin">admin</option>
                         </select>
                         <button class="btn btn-secondary" id="changeRoleBtn">Update Role</button>
                     </div>

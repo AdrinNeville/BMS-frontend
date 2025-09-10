@@ -7,6 +7,7 @@ let currentTab = 'books';
 let allBooks = [];
 let borrowedBooks = [];
 let selectedBookId = null;
+let allUsers = [];
 
 // DOM Elements
 const navItems = document.querySelectorAll('.nav-item');
@@ -32,6 +33,12 @@ const userName = document.getElementById('userName');
 const userRole = document.getElementById('userRole');
 const userInitials = document.getElementById('userInitials');
 const logoutBtn = document.getElementById('logoutBtn');
+
+// User Modal elements
+const modalUserName = document.getElementById('modalUserName');
+const modalUserEmail = document.getElementById('modalUserEmail');
+const modalUserRole = document.getElementById('modalUserRole');
+const modalUserId = document.getElementById('modalUserId');
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
@@ -247,9 +254,6 @@ function switchTab(tabName) {
             case 'admin':
                 targetId = 'adminTabContent';
                 break;
-            case 'reports':
-                targetId = 'reportsTabContent';
-                break;
             default:
                 targetId = tabName + 'Tab';
         }
@@ -300,9 +304,6 @@ function loadTabData(tabName) {
             break;
         case 'admin':
             if (currentUser && currentUser.role === 'admin') loadAdminData();
-            break;
-        case 'reports':
-            if (currentUser && currentUser.role === 'admin') loadReportsData();
             break;
     }
 }
@@ -506,7 +507,8 @@ async function loadUsers() {
         if (!usersTableBody) return;
         showLoadingTable(usersTableBody);
         const users = await makeAPIRequest('/users/');
-        renderUsers(Array.isArray(users) ? users : []);
+        allUsers=Array.isArray(users) ? users : [];
+        renderUsers(allUsers);
     } catch (error) {
         console.error('Failed to load users:', error);
         showError('Failed to load users. Please try again.');
@@ -538,7 +540,6 @@ function renderUsers(users) {
                     ${user.role || 'member'}
                 </span>
             </td>
-            <td>-</td>
             <td>
                 <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;" onclick="openUserModal('${user.id}')">
                     View Details
@@ -730,83 +731,6 @@ function renderOverdueBooks(overdue) {
             </div>
         </div>
     `).join('');
-}
-
-// Load reports data
-async function loadReportsData() {
-    try {
-        await Promise.all([
-            loadStatsSummary(),
-            loadPopularBooks()
-        ]);
-    } catch (error) {
-        console.error('Failed to load reports data:', error);
-    }
-}
-
-// Load stats summary
-async function loadStatsSummary() {
-    try {
-        const [booksStats, userStats, borrowStats] = await Promise.all([
-            makeAPIRequest('/books/'),
-            makeAPIRequest('/users/stats/summary'),
-            makeAPIRequest('/borrow/all')
-        ]);
-
-        // Update stats cards
-        document.getElementById('totalBooks').textContent = booksStats.length || 0;
-        document.getElementById('totalUsers').textContent = userStats.total_users || 0;
-        
-        const activeBorrows = borrowStats.filter(b => !b.returned_at).length;
-        document.getElementById('activeBorrows').textContent = activeBorrows;
-
-        const overdue = await makeAPIRequest('/borrow/overdue');
-        document.getElementById('overdueCount').textContent = overdue.length || 0;
-    } catch (error) {
-        console.error('Failed to load stats summary:', error);
-    }
-}
-
-// Load popular books
-async function loadPopularBooks() {
-    const popularBooks = document.getElementById('popularBooks');
-    if (!popularBooks) return;
-
-    try {
-        showLoading(popularBooks);
-        const books = await makeAPIRequest('/books/');
-        // For now, just show first 5 books as popular
-        // In a real system, you'd have borrow count data
-        const topBooks = books.slice(0, 5);
-        
-        if (topBooks.length === 0) {
-            popularBooks.innerHTML = `
-                <div class="empty-state">
-                    <h3>No books available</h3>
-                </div>
-            `;
-            return;
-        }
-
-        popularBooks.innerHTML = topBooks.map(book => `
-            <div class="popular-book-item">
-                <div class="book-info">
-                    <h4>${escapeHtml(book.title || '')}</h4>
-                    <p>by ${escapeHtml(book.author || 'Unknown')}</p>
-                </div>
-                <div class="book-stats">
-                    <span>Copies: ${book.available_copies}/${book.total_copies}</span>
-                </div>
-            </div>
-        `).join('');
-    } catch (error) {
-        console.error('Failed to load popular books:', error);
-        popularBooks.innerHTML = `
-            <div class="empty-state">
-                <h3>Failed to load popular books</h3>
-            </div>
-        `;
-    }
 }
 
 // Open book modal
@@ -1058,8 +982,98 @@ function handleManageBookSearch() {
 
 // User modal functions
 function openUserModal(userId) {
-    // Implementation for user modal
-    console.log('Opening user modal for:', userId);
+    const userModal = document.getElementById('userModal');
+    if (!userModal) return;
+
+    // 1. Show modal
+    userModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    // 2. Find user data (assuming you have allUsers in memory)
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) {
+        console.error('User not found:', userId);
+        return;
+    }
+
+    // 3. Populate modal content (example fields)
+    userModal.getElementById('modalUserName').textContent = user.name || 'N/A';
+    userModal.getElementById('modalUserEmail').textContent = user.email || 'N/A';
+    userModal.getElementById('modalUserRole').textContent = user.role || 'member';
+
+    console.log('Opened user modal for:', userId);
+}
+
+
+async function handleChangeUserRole(userId, newRole) {
+    try {
+        console.log(`Changing role for user ${userId} to ${newRole}`);
+
+        const response = await fetch(`/users/${userId}/role?new_role=${newRole}`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${getToken()}` // use your token helper
+            }
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || "Failed to update role");
+        }
+
+        const data = await response.json();
+
+        // Update local copy of allUsers (if you’re storing them)
+        allUsers = allUsers.map(user =>
+            user.id === userId ? { ...user, role: newRole } : user
+        );
+
+        // Re-render the users table
+        renderUsers(allUsers);
+
+        alert(data.message);
+        console.log("Role updated successfully:", data);
+    } catch (error) {
+        console.error("Error changing user role:", error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function handleDeleteUser(userId) {
+    if (!confirm("Are you sure you want to delete this user?")) {
+        return;
+    }
+
+    try {
+        console.log(`Deleting user ${userId}`);
+
+        const response = await fetch(`/users/${userId}`, {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${getToken()}`
+            }
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || "Failed to delete user");
+        }
+
+        const data = await response.json();
+
+        // Remove from local allUsers
+        allUsers = allUsers.filter(user => user.id !== userId);
+
+        // Re-render the users table
+        renderUsers(allUsers);
+
+        alert(data.message || "User deleted successfully");
+        console.log("User deleted successfully:", data);
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        alert(`Error: ${error.message}`);
+    }
 }
 
 function closeUserModal() {
@@ -1068,14 +1082,6 @@ function closeUserModal() {
         userModal.classList.add('hidden');
         document.body.style.overflow = 'auto';
     }
-}
-
-function handleChangeUserRole() {
-    console.log('Changing user role');
-}
-
-function handleDeleteUser() {
-    console.log('Deleting user');
 }
 
 // Book management modal functions
@@ -1212,12 +1218,6 @@ function handleKeyboardShortcuts(e) {
                 if (currentUser && currentUser.role === 'admin') {
                     e.preventDefault();
                     switchTab('admin');
-                }
-                break;
-            case '5':
-                if (currentUser && currentUser.role === 'admin') {
-                    e.preventDefault();
-                    switchTab('reports');
                 }
                 break;
         }
