@@ -28,18 +28,6 @@ const borrowBookBtn = document.getElementById('borrowBookBtn');
 const closeModal = document.getElementById('closeModal');
 const cancelModal = document.getElementById('cancelModal');
 
-// User info elements
-const userName = document.getElementById('userName');
-const userRole = document.getElementById('userRole');
-const userInitials = document.getElementById('userInitials');
-const logoutBtn = document.getElementById('logoutBtn');
-
-// User Modal elements
-const modalUserName = document.getElementById('modalUserName');
-const modalUserEmail = document.getElementById('modalUserEmail');
-const modalUserRole = document.getElementById('modalUserRole');
-const modalUserId = document.getElementById('modalUserId');
-
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
     checkAuthentication();
@@ -199,28 +187,6 @@ function setupAdminEventListeners() {
     if (manageBookSearch) {
         manageBookSearch.addEventListener('input', debounce(handleManageBookSearch, 300));
     }
-
-    // User modals
-    const closeUserModalBtn = document.getElementById('closeUserModalBtn');
-    const cancelUserModal = document.getElementById('cancelUserModal');
-    const changeRoleBtn = document.getElementById('changeRoleBtn');
-    const deleteUserBtn = document.getElementById('deleteUserBtn');
-
-    if (closeUserModalBtn) closeUserModalBtn.addEventListener('click', closeUserModal);
-    if (cancelUserModal) cancelUserModal.addEventListener('click', closeUserModal);
-    if (changeRoleBtn) changeRoleBtn.addEventListener('click', handleChangeUserRole);
-    if (deleteUserBtn) deleteUserBtn.addEventListener('click', handleDeleteUser);
-
-    // Book management modals
-    const closeManageBookModal = document.getElementById('closeManageBookModal');
-    const cancelManageBookModal = document.getElementById('cancelManageBookModal');
-    const addCopiesBtn = document.getElementById('addCopiesBtn');
-    const removeCopiesBtn = document.getElementById('removeCopiesBtn');
-
-    if (closeManageBookModal) closeManageBookModal.addEventListener('click', closeManageBookModal);
-    if (cancelManageBookModal) cancelManageBookModal.addEventListener('click', closeManageBookModal);
-    if (addCopiesBtn) addCopiesBtn.addEventListener('click', handleAddCopies);
-    if (removeCopiesBtn) removeCopiesBtn.addEventListener('click', handleRemoveCopies);
 }
 
 // Tab switching - FIXED
@@ -384,27 +350,6 @@ function renderBooksError() {
     `;
 }
 
-// Load borrowed books - ENHANCED
-async function loadBorrowedBooks() {
-    try {
-        if (borrowedBooksList) showLoading(borrowedBooksList);
-        const borrowed = await makeAPIRequest('/borrow/my-borrows');
-        borrowedBooks = Array.isArray(borrowed) ? borrowed : [];
-        console.log('Loaded borrowed books:', borrowedBooks);
-        
-        // If we have borrowed books, enhance them with book details
-        if (borrowedBooks.length > 0) {
-            await enhanceBorrowedBooksWithDetails();
-        }
-        
-        renderBorrowedBooks(borrowedBooks);
-    } catch (error) {
-        console.error('Failed to load borrowed books:', error);
-        showError('Failed to load borrowed books. Please try again.');
-        if (borrowedBooksList) renderBorrowedBooksError();
-    }
-}
-
 // Enhance borrowed books with full book details
 async function enhanceBorrowedBooksWithDetails() {
     for (let borrow of borrowedBooks) {
@@ -424,83 +369,6 @@ async function enhanceBorrowedBooksWithDetails() {
     }
 }
 
-// Render borrowed books - ENHANCED
-function renderBorrowedBooks(borrowed) {
-    if (!borrowedBooksList) return;
-    
-    console.log('Rendering borrowed books:', borrowed);
-    
-    if (borrowed.length === 0) {
-        borrowedBooksList.innerHTML = `
-            <div class="empty-state">
-                <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                </svg>
-                <h3>No borrowed books</h3>
-                <p>You haven't borrowed any books yet. Browse the library to find books to borrow.</p>
-            </div>
-        `;
-        return;
-    }
-    
-    borrowedBooksList.innerHTML = borrowed.map(borrow => {
-        // Get book info
-        const bookTitle = borrow.book?.title || `Book ID: ${borrow.book_id}`;
-        const bookAuthor = borrow.book?.author || 'Unknown Author';
-        
-        const borrowDate = new Date(borrow.borrowed_at).toLocaleDateString();
-        const isReturned = !!borrow.returned_at;
-        const returnDate = isReturned ? new Date(borrow.returned_at).toLocaleDateString() : null;
-        
-        return `
-            <div class="borrowed-book-item">
-                <div class="borrowed-book-header">
-                    <div class="borrowed-book-info">
-                        <h3>${escapeHtml(bookTitle)}</h3>
-                        <p>by ${escapeHtml(bookAuthor)}</p>
-                        <small>Borrow ID: ${borrow.id}</small>
-                    </div>
-                </div>
-                <div class="borrowed-book-meta">
-                    <span>Borrowed: ${borrowDate}</span>
-                    ${isReturned ? 
-                        `<span>Returned: ${returnDate}</span>` : 
-                        '<span class="status-badge borrowed">Currently Borrowed</span>'
-                    }
-                </div>
-                ${!isReturned ? `
-                    <div class="borrowed-book-actions">
-                        <button class="btn btn-success" onclick="returnBook('${borrow.id}')">
-                            <span class="btn-text">Return Book</span>
-                            <div class="btn-spinner hidden">
-                                <div class="spinner"></div>
-                            </div>
-                        </button>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }).join('');
-}
-
-// Render borrowed books error
-function renderBorrowedBooksError() {
-    if (!borrowedBooksList) return;
-    
-    borrowedBooksList.innerHTML = `
-        <div class="empty-state">
-            <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <h3>Failed to load borrowed books</h3>
-            <p>There was an error loading your borrowed books. Please refresh the page.</p>
-        </div>
-    `;
-}
-
 // Load users (admin only)
 async function loadUsers() {
     try {
@@ -514,52 +382,6 @@ async function loadUsers() {
         showError('Failed to load users. Please try again.');
         if (usersTableBody) renderUsersError();
     }
-}
-
-// Render users
-function renderUsers(users) {
-    if (!usersTableBody) return;
-    
-    if (users.length === 0) {
-        usersTableBody.innerHTML = `
-            <tr>
-                <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
-                    No users found
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    usersTableBody.innerHTML = users.map(user => `
-        <tr>
-            <td>${escapeHtml(user.name || '')}</td>
-            <td>${escapeHtml(user.email || '')}</td>
-            <td>
-                <span class="status-badge ${user.role === 'admin' ? 'borrowed' : 'available'}">
-                    ${user.role || 'member'}
-                </span>
-            </td>
-            <td>
-                <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;" onclick="openUserModal('${user.id}')">
-                    View Details
-                </button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-// Render users error
-function renderUsersError() {
-    if (!usersTableBody) return;
-    
-    usersTableBody.innerHTML = `
-        <tr>
-            <td colspan="5" style="text-align: center; padding: 40px; color: #ef4444;">
-                Failed to load users. Please try again.
-            </td>
-        </tr>
-    `;
 }
 
 // Load admin data
@@ -978,110 +800,6 @@ function handleManageBookSearch() {
     );
     
     renderManageBooks(filteredBooks);
-}
-
-// User modal functions
-function openUserModal(userId) {
-    const userModal = document.getElementById('userModal');
-    if (!userModal) return;
-
-    // 1. Show modal
-    userModal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-
-    // 2. Find user data (assuming you have allUsers in memory)
-    const user = allUsers.find(u => u.id === userId);
-    if (!user) {
-        console.error('User not found:', userId);
-        return;
-    }
-
-    // 3. Populate modal content (example fields)
-    userModal.getElementById('modalUserName').textContent = user.name || 'N/A';
-    userModal.getElementById('modalUserEmail').textContent = user.email || 'N/A';
-    userModal.getElementById('modalUserRole').textContent = user.role || 'member';
-
-    console.log('Opened user modal for:', userId);
-}
-
-
-async function handleChangeUserRole(userId, newRole) {
-    try {
-        console.log(`Changing role for user ${userId} to ${newRole}`);
-
-        const response = await fetch(`/users/${userId}/role?new_role=${newRole}`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}` // use your token helper
-            }
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || "Failed to update role");
-        }
-
-        const data = await response.json();
-
-        // Update local copy of allUsers (if you’re storing them)
-        allUsers = allUsers.map(user =>
-            user.id === userId ? { ...user, role: newRole } : user
-        );
-
-        // Re-render the users table
-        renderUsers(allUsers);
-
-        alert(data.message);
-        console.log("Role updated successfully:", data);
-    } catch (error) {
-        console.error("Error changing user role:", error);
-        alert(`Error: ${error.message}`);
-    }
-}
-
-async function handleDeleteUser(userId) {
-    if (!confirm("Are you sure you want to delete this user?")) {
-        return;
-    }
-
-    try {
-        console.log(`Deleting user ${userId}`);
-
-        const response = await fetch(`/users/${userId}`, {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${getToken()}`
-            }
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || "Failed to delete user");
-        }
-
-        const data = await response.json();
-
-        // Remove from local allUsers
-        allUsers = allUsers.filter(user => user.id !== userId);
-
-        // Re-render the users table
-        renderUsers(allUsers);
-
-        alert(data.message || "User deleted successfully");
-        console.log("User deleted successfully:", data);
-    } catch (error) {
-        console.error("Error deleting user:", error);
-        alert(`Error: ${error.message}`);
-    }
-}
-
-function closeUserModal() {
-    const userModal = document.getElementById('userModal');
-    if (userModal) {
-        userModal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
-    }
 }
 
 // Book management modal functions
