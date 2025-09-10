@@ -1,20 +1,62 @@
-// Render borrowed books - ENHANCED
+// borrowed-books.js - User's Borrowed Books Module
+
+// DOM Elements
+const borrowedBooksList = document.getElementById('borrowedBooksList');
+
+// Setup event listeners for borrowed books functionality
+function setupBorrowedBooksEventListeners() {
+    // No specific event listeners needed as return buttons are dynamically created
+    // Event delegation is handled in the render functions
+}
+
+// Load borrowed books from API
+async function loadBorrowedBooks() {
+    try {
+        if (borrowedBooksList) showLoading(borrowedBooksList);
+        const borrowed = await getBorrowedBooksFromAPI();
+        borrowedBooks = Array.isArray(borrowed) ? borrowed : [];
+        console.log('Loaded borrowed books:', borrowedBooks);
+        
+        // Enhance borrowed books with book details
+        if (borrowedBooks.length > 0) {
+            await enhanceBorrowedBooksWithDetails();
+        }
+        
+        renderBorrowedBooks(borrowedBooks);
+    } catch (error) {
+        console.error('Failed to load borrowed books:', error);
+        showError('Failed to load borrowed books. Please try again.');
+        if (borrowedBooksList) renderBorrowedBooksError();
+    }
+}
+
+// Enhance borrowed books with full book details
+async function enhanceBorrowedBooksWithDetails() {
+    for (let borrow of borrowedBooks) {
+        if (borrow.book_id && !borrow.book) {
+            try {
+                const bookDetails = await getBookByIdFromAPI(borrow.book_id);
+                borrow.book = bookDetails;
+            } catch (error) {
+                console.warn(`Failed to fetch details for book ${borrow.book_id}:`, error);
+                // Set fallback book info
+                borrow.book = {
+                    title: `Book ID: ${borrow.book_id}`,
+                    author: 'Unknown Author'
+                };
+            }
+        }
+    }
+}
+
+// Render borrowed books list
 function renderBorrowedBooks(borrowed) {
     if (!borrowedBooksList) return;
     
     console.log('Rendering borrowed books:', borrowed);
     
     if (borrowed.length === 0) {
-        borrowedBooksList.innerHTML = `
-            <div class="empty-state">
-                <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                </svg>
-                <h3>No borrowed books</h3>
-                <p>You haven't borrowed any books yet. Browse the library to find books to borrow.</p>
-            </div>
-        `;
+        borrowedBooksList.innerHTML = createBorrowedBooksEmptyState();
         return;
     }
     
@@ -23,12 +65,16 @@ function renderBorrowedBooks(borrowed) {
         const bookTitle = borrow.book?.title || `Book ID: ${borrow.book_id}`;
         const bookAuthor = borrow.book?.author || 'Unknown Author';
         
-        const borrowDate = new Date(borrow.borrowed_at).toLocaleDateString();
+        const borrowDate = formatDate(borrow.borrowed_at);
         const isReturned = !!borrow.returned_at;
-        const returnDate = isReturned ? new Date(borrow.returned_at).toLocaleDateString() : null;
+        const returnDate = isReturned ? formatDate(borrow.returned_at) : null;
+        
+        // Calculate if overdue (for active borrows)
+        const isOverdue = !isReturned && calculateDaysOverdue(borrow.borrowed_at) > 0;
+        const daysOverdue = isOverdue ? calculateDaysOverdue(borrow.borrowed_at) : 0;
         
         return `
-            <div class="borrowed-book-item">
+            <div class="borrowed-book-item ${isOverdue ? 'overdue' : ''}">
                 <div class="borrowed-book-header">
                     <div class="borrowed-book-info">
                         <h3>${escapeHtml(bookTitle)}</h3>
@@ -40,7 +86,9 @@ function renderBorrowedBooks(borrowed) {
                     <span>Borrowed: ${borrowDate}</span>
                     ${isReturned ? 
                         `<span>Returned: ${returnDate}</span>` : 
-                        '<span class="status-badge borrowed">Currently Borrowed</span>'
+                        `<span class="status-badge ${isOverdue ? 'overdue' : 'borrowed'}">
+                            ${isOverdue ? `Overdue (${daysOverdue} days)` : 'Currently Borrowed'}
+                        </span>`
                     }
                 </div>
                 ${!isReturned ? `
@@ -58,40 +106,109 @@ function renderBorrowedBooks(borrowed) {
     }).join('');
 }
 
-// Render borrowed books error
+// Render borrowed books error state
 function renderBorrowedBooksError() {
     if (!borrowedBooksList) return;
     
-    borrowedBooksList.innerHTML = `
-        <div class="empty-state">
-            <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <h3>Failed to load borrowed books</h3>
-            <p>There was an error loading your borrowed books. Please refresh the page.</p>
-        </div>
-    `;
+    borrowedBooksList.innerHTML = createErrorState(
+        'Failed to load borrowed books',
+        'There was an error loading your borrowed books. Please refresh the page.'
+    );
 }
 
-// Load borrowed books - ENHANCED
-async function loadBorrowedBooks() {
+// Return book function
+async function returnBook(borrowId) {
+    const button = event.target.closest('button');
+    
     try {
-        if (borrowedBooksList) showLoading(borrowedBooksList);
-        const borrowed = await makeAPIRequest('/borrow/my-borrows');
-        borrowedBooks = Array.isArray(borrowed) ? borrowed : [];
-        console.log('Loaded borrowed books:', borrowedBooks);
+        setButtonLoading(button, true);
         
-        // If we have borrowed books, enhance them with book details
-        if (borrowedBooks.length > 0) {
-            await enhanceBorrowedBooksWithDetails();
+        await returnBookToAPI(borrowId);
+        
+        showSuccess('Book returned successfully!');
+        
+        // Refresh data
+        await loadBooks();
+        await loadBorrowedBooks();
+        if (currentUser && currentUser.role === 'admin') {
+            await loadCurrentBorrows();
+            await loadOverdueBooks();
         }
         
-        renderBorrowedBooks(borrowedBooks);
     } catch (error) {
-        console.error('Failed to load borrowed books:', error);
-        showError('Failed to load borrowed books. Please try again.');
-        if (borrowedBooksList) renderBorrowedBooksError();
+        console.error('Failed to return book:', error);
+        showApiError(error);
+    } finally {
+        setButtonLoading(button, false);
     }
+}
+
+// Get borrowed books statistics
+function getBorrowedBooksStats() {
+    const activeBorrows = borrowedBooks.filter(b => !b.returned_at);
+    const returnedBooks = borrowedBooks.filter(b => b.returned_at);
+    const overdueBorrows = activeBorrows.filter(b => 
+        calculateDaysOverdue(b.borrowed_at) > 0
+    );
+    
+    return {
+        total: borrowedBooks.length,
+        active: activeBorrows.length,
+        returned: returnedBooks.length,
+        overdue: overdueBorrows.length,
+        activeBorrows,
+        returnedBooks,
+        overdueBorrows
+    };
+}
+
+// Filter borrowed books by status
+function filterBorrowedBooks(status = 'all') {
+    let filtered;
+    
+    switch (status) {
+        case 'active':
+            filtered = borrowedBooks.filter(b => !b.returned_at);
+            break;
+        case 'returned':
+            filtered = borrowedBooks.filter(b => b.returned_at);
+            break;
+        case 'overdue':
+            filtered = borrowedBooks.filter(b => 
+                !b.returned_at && calculateDaysOverdue(b.borrowed_at) > 0
+            );
+            break;
+        default:
+            filtered = borrowedBooks;
+    }
+    
+    renderBorrowedBooks(filtered);
+    return filtered;
+}
+
+// Search borrowed books
+function searchBorrowedBooks(query) {
+    const filtered = filterByQuery(borrowedBooks, query, ['book.title', 'book.author']);
+    renderBorrowedBooks(filtered);
+    return filtered;
+}
+
+// Export borrowed books data (for potential future use)
+function exportBorrowedBooksData() {
+    const stats = getBorrowedBooksStats();
+    const exportData = {
+        timestamp: new Date().toISOString(),
+        user: currentUser.name,
+        stats,
+        books: borrowedBooks.map(borrow => ({
+            bookTitle: borrow.book?.title || `Book ID: ${borrow.book_id}`,
+            bookAuthor: borrow.book?.author || 'Unknown',
+            borrowedAt: borrow.borrowed_at,
+            returnedAt: borrow.returned_at,
+            isOverdue: !borrow.returned_at && calculateDaysOverdue(borrow.borrowed_at) > 0,
+            daysOverdue: !borrow.returned_at ? calculateDaysOverdue(borrow.borrowed_at) : 0
+        }))
+    };
+    
+    return exportData;
 }

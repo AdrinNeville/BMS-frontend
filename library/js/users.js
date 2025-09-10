@@ -1,16 +1,17 @@
-// User info elements
-const userName = document.getElementById('userName');
-const userRole = document.getElementById('userRole');
-const userInitials = document.getElementById('userInitials');
-const logoutBtn = document.getElementById('logoutBtn');
+// users.js - User Management Module (Admin Only)
+
+// DOM Elements
+const usersTableBody = document.getElementById('usersTableBody');
 
 // User Modal elements
+const userModal = document.getElementById('userModal');
 const modalUserName = document.getElementById('modalUserName');
 const modalUserEmail = document.getElementById('modalUserEmail');
 const modalUserRole = document.getElementById('modalUserRole');
 const modalUserId = document.getElementById('modalUserId');
 
-function setupAdminEventListeners() {
+// Setup event listeners for users functionality
+function setupUsersEventListeners() {
     // User modals
     const closeUserModalBtn = document.getElementById('closeUserModalBtn');
     const cancelUserModal = document.getElementById('cancelUserModal');
@@ -19,18 +20,33 @@ function setupAdminEventListeners() {
 
     if (closeUserModalBtn) closeUserModalBtn.addEventListener('click', closeUserModal);
     if (cancelUserModal) cancelUserModal.addEventListener('click', closeUserModal);
-    if (changeRoleBtn) changeRoleBtn.addEventListener('click', handleChangeUserRole);
-    if (deleteUserBtn) deleteUserBtn.addEventListener('click', handleDeleteUser);
+    if (changeRoleBtn) changeRoleBtn.addEventListener('click', handleChangeUserRoleFromModal);
+    if (deleteUserBtn) deleteUserBtn.addEventListener('click', handleDeleteUserFromModal);
 }
 
-// Render users
+// Load users from API
+async function loadUsers() {
+    try {
+        if (!usersTableBody) return;
+        showLoadingTable(usersTableBody);
+        const users = await getUsersFromAPI();
+        allUsers = Array.isArray(users) ? users : [];
+        renderUsers(allUsers);
+    } catch (error) {
+        console.error('Failed to load users:', error);
+        showError('Failed to load users. Please try again.');
+        if (usersTableBody) renderUsersError();
+    }
+}
+
+// Render users table
 function renderUsers(users) {
     if (!usersTableBody) return;
     
     if (users.length === 0) {
         usersTableBody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
+                <td colspan="4" style="text-align: center; padding: 40px; color: #6b7280;">
                     No users found
                 </td>
             </tr>
@@ -48,7 +64,7 @@ function renderUsers(users) {
                 </span>
             </td>
             <td>
-                <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;" onclick="openUserModal('${user.id}')">
+                <button class="btn btn-secondary btn-sm" onclick="openUserModal('${user.id}')">
                     View Details
                 </button>
             </td>
@@ -56,119 +72,237 @@ function renderUsers(users) {
     `).join('');
 }
 
-// Render users error
+// Render users error state
 function renderUsersError() {
     if (!usersTableBody) return;
     
     usersTableBody.innerHTML = `
         <tr>
-            <td colspan="5" style="text-align: center; padding: 40px; color: #ef4444;">
+            <td colspan="4" style="text-align: center; padding: 40px; color: #ef4444;">
                 Failed to load users. Please try again.
             </td>
         </tr>
     `;
 }
 
-// User modal functions
+// Open user modal
 function openUserModal(userId) {
-    const userModal = document.getElementById('userModal');
     if (!userModal) return;
 
-    // 1. Show modal
-    userModal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-
-    // 2. Find user data (assuming you have allUsers in memory)
-    const user = allUsers.find(u => u.id === userId);
+    // Find user data
+    const user = findById(allUsers, userId);
     if (!user) {
         console.error('User not found:', userId);
+        showError('User not found');
         return;
     }
 
-    // 3. Populate modal content (example fields)
-    userModal.getElementById('modalUserName').textContent = user.name || 'N/A';
-    userModal.getElementById('modalUserEmail').textContent = user.email || 'N/A';
-    userModal.getElementById('modalUserRole').textContent = user.role || 'member';
+    // Populate modal content
+    if (modalUserName) modalUserName.textContent = user.name || 'N/A';
+    if (modalUserEmail) modalUserEmail.textContent = user.email || 'N/A';
+    if (modalUserRole) modalUserRole.textContent = user.role || 'member';
+    if (modalUserId) modalUserId.textContent = user.id;
 
+    // Store user ID for actions
+    userModal.dataset.userId = userId;
+
+    openModal('userModal');
     console.log('Opened user modal for:', userId);
 }
 
+// Close user modal
+function closeUserModal() {
+    closeModal('userModal');
+}
 
+// Handle change user role from modal
+async function handleChangeUserRoleFromModal() {
+    const userId = userModal?.dataset.userId;
+    if (!userId) return;
+
+    const user = findById(allUsers, userId);
+    if (!user) return;
+
+    const currentRole = user.role || 'member';
+    const newRole = currentRole === 'admin' ? 'member' : 'admin';
+
+    const confirmMessage = `Change ${user.name}'s role from '${currentRole}' to '${newRole}'?`;
+    if (!showConfirmDialog(confirmMessage)) return;
+
+    await handleChangeUserRole(userId, newRole);
+}
+
+// Handle delete user from modal
+async function handleDeleteUserFromModal() {
+    const userId = userModal?.dataset.userId;
+    if (!userId) return;
+
+    const user = findById(allUsers, userId);
+    if (!user) return;
+
+    const confirmMessage = `Are you sure you want to delete user '${user.name}' (${user.email})? This action cannot be undone.`;
+    if (!showConfirmDialog(confirmMessage)) return;
+
+    await handleDeleteUser(userId);
+}
+
+// Handle change user role
 async function handleChangeUserRole(userId, newRole) {
+    const changeRoleBtn = document.getElementById('changeRoleBtn');
+    
     try {
+        if (changeRoleBtn) setButtonLoading(changeRoleBtn, true);
+        
         console.log(`Changing role for user ${userId} to ${newRole}`);
 
-        const response = await fetch(`/users/${userId}/role?new_role=${newRole}`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}` // use your token helper
-            }
-        });
+        const result = await changeUserRoleAPI(userId, newRole);
 
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || "Failed to update role");
-        }
-
-        const data = await response.json();
-
-        // Update local copy of allUsers (if you’re storing them)
-        allUsers = allUsers.map(user =>
-            user.id === userId ? { ...user, role: newRole } : user
-        );
+        // Update local copy of allUsers
+        allUsers = updateById(allUsers, userId, { role: newRole });
 
         // Re-render the users table
         renderUsers(allUsers);
 
-        alert(data.message);
-        console.log("Role updated successfully:", data);
+        showSuccess(result.message || 'User role updated successfully');
+        closeUserModal();
+        
+        console.log("Role updated successfully:", result);
     } catch (error) {
         console.error("Error changing user role:", error);
-        alert(`Error: ${error.message}`);
+        showApiError(error);
+    } finally {
+        if (changeRoleBtn) setButtonLoading(changeRoleBtn, false);
     }
 }
 
+// Handle delete user
 async function handleDeleteUser(userId) {
-    if (!confirm("Are you sure you want to delete this user?")) {
-        return;
-    }
-
+    const deleteUserBtn = document.getElementById('deleteUserBtn');
+    
     try {
+        if (deleteUserBtn) setButtonLoading(deleteUserBtn, true);
+        
         console.log(`Deleting user ${userId}`);
 
-        const response = await fetch(`/users/${userId}`, {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${getToken()}`
-            }
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || "Failed to delete user");
-        }
-
-        const data = await response.json();
+        const result = await deleteUserFromAPI(userId);
 
         // Remove from local allUsers
-        allUsers = allUsers.filter(user => user.id !== userId);
+        allUsers = removeById(allUsers, userId);
 
         // Re-render the users table
         renderUsers(allUsers);
 
-        alert(data.message || "User deleted successfully");
-        console.log("User deleted successfully:", data);
+        showSuccess(result.message || "User deleted successfully");
+        closeUserModal();
+        
+        console.log("User deleted successfully:", result);
     } catch (error) {
         console.error("Error deleting user:", error);
-        alert(`Error: ${error.message}`);
+        showApiError(error);
+    } finally {
+        if (deleteUserBtn) setButtonLoading(deleteUserBtn, false);
     }
 }
 
-function closeUserModal() {
-    const userModal = document.getElementById('userModal');
-    if (userModal) {
-        userModal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
+// Search users
+function searchUsers(query) {
+    if (!query) {
+        renderUsers(allUsers);
+        return allUsers;
     }
+    
+    const filtered = filterByQuery(allUsers, query, ['name', 'email']);
+    renderUsers(filtered);
+    return filtered;
+}
+
+// Filter users by role
+function filterUsersByRole(role) {
+    let filtered;
+    
+    switch (role) {
+        case 'admin':
+            filtered = allUsers.filter(user => user.role === 'admin');
+            break;
+        case 'member':
+            filtered = allUsers.filter(user => user.role !== 'admin');
+            break;
+        default:
+            filtered = allUsers;
+    }
+    
+    renderUsers(filtered);
+    return filtered;
+}
+
+// Get user statistics
+function getUserStatistics() {
+    const totalUsers = allUsers.length;
+    const adminCount = allUsers.filter(user => user.role === 'admin').length;
+    const memberCount = totalUsers - adminCount;
+    
+    return {
+        total: totalUsers,
+        admins: adminCount,
+        members: memberCount,
+        adminPercentage: totalUsers > 0 ? Math.round((adminCount / totalUsers) * 100) : 0,
+        memberPercentage: totalUsers > 0 ? Math.round((memberCount / totalUsers) * 100) : 0
+    };
+}
+
+// Bulk user operations (for future enhancement)
+function bulkChangeUserRoles(userIds, newRole) {
+    const promises = userIds.map(id => handleChangeUserRole(id, newRole));
+    return Promise.all(promises);
+}
+
+function bulkDeleteUsers(userIds) {
+    if (!showConfirmDialog(`Delete ${userIds.length} users? This action cannot be undone.`)) {
+        return;
+    }
+    
+    const promises = userIds.map(id => handleDeleteUser(id));
+    return Promise.all(promises);
+}
+
+// Export users data
+function exportUsersData() {
+    const stats = getUserStatistics();
+    const exportData = {
+        timestamp: new Date().toISOString(),
+        exportedBy: currentUser.name,
+        statistics: stats,
+        users: allUsers.map(user => ({
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            id: user.id
+        }))
+    };
+    
+    return exportData;
+}
+
+// Validate user data
+function validateUserData(userData) {
+    const errors = [];
+    
+    if (!validateRequired(userData.name)) {
+        errors.push('Name is required');
+    }
+    
+    if (!validateRequired(userData.email)) {
+        errors.push('Email is required');
+    } else if (!validateEmail(userData.email)) {
+        errors.push('Email format is invalid');
+    }
+    
+    if (userData.role && !['admin', 'member'].includes(userData.role)) {
+        errors.push('Role must be either "admin" or "member"');
+    }
+    
+    return {
+        isValid: errors.length === 0,
+        errors
+    };
 }
