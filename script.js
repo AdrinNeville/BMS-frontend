@@ -1,5 +1,12 @@
-// Configuration
-const API_BASE_URL = 'https://bms-17ee.onrender.com/'; // Adjust this to your FastAPI server URL
+let API_BASE_URL = "";
+
+async function loadConfig() {
+  const res = await fetch("/config");
+  const cfg = await res.json();
+  API_BASE_URL = cfg.API_BASE_URL;
+}
+
+document.addEventListener("DOMContentLoaded", loadConfig);
 
 // DOM Elements
 const loginForm = document.getElementById('loginForm');
