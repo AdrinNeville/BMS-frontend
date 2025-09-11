@@ -1,9 +1,4 @@
-let API_BASE_URL = "";
-
-async function loadConfig() {
-  const res = await fetch("/config");
-  API_BASE_URL = res.API_BASE_URL;
-}
+const API_BASE_URL = "https://bms-8ey2.onrender.com/";
 
 document.addEventListener("DOMContentLoaded", loadConfig);
 
