@@ -2,8 +2,7 @@ let API_BASE_URL = "";
 
 async function loadConfig() {
   const res = await fetch("/config");
-  const cfg = await res.json();
-  API_BASE_URL = cfg.API_BASE_URL;
+  API_BASE_URL = res.API_BASE_URL;
 }
 
 document.addEventListener("DOMContentLoaded", loadConfig);
@@ -430,6 +429,8 @@ async function handleLogin(e) {
             method: 'POST',
             body: formData
         });
+        
+        const data = await response.json();
         
         if (!response.ok) {
             throw new Error(data.detail || 'Login failed');
