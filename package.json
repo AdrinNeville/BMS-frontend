@@ -19,10 +19,12 @@
     "url": "https://github.com/AdrinNeville/BMS-frontend/issues"
   },
   "homepage": "https://github.com/AdrinNeville/BMS-frontend#readme",
-  "dependencies": {
-    "vite": "^7.1.5"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "vite": "^7.1.5",
     "terser": "^5.24.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
