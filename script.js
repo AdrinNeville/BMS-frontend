@@ -1,5 +1,5 @@
 // Configuration
-const API_BASE_URL = 'http://localhost:8000'; // Adjust this to your FastAPI server URL
+const API_BASE_URL = "https://bms-8ey2.onrender.com"
 
 // DOM Elements
 const loginForm = document.getElementById('loginForm');
