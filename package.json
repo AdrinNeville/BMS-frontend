@@ -8,9 +8,6 @@
     "preview": "vite preview",
     "serve": "vite preview --port 4173"
   },
-  "engines": {
-    "node": ">=20.0.0"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/AdrinNeville/BMS-frontend.git"
