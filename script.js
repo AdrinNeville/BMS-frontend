@@ -1,5 +1,5 @@
 // Configuration
-const API_BASE_URL = import.meta.env.VITE_FASTAPI_URL //|| 'https://bms-8ey2.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_FASTAPI_URL 
 
 // DOM Elements
 const loginForm = document.getElementById('loginForm');
