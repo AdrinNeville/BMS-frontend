@@ -672,9 +672,6 @@ function renderCurrentBorrows(borrows) {
                 </div>
                 <div class="borrow-meta">
                     <span>Borrowed: ${borrowDate}</span>
-                    <button class="btn btn-success" onclick="forceReturnBook('${borrow.id}')">
-                        Force Return
-                    </button>
                 </div>
             </div>
         `;
@@ -725,9 +722,6 @@ function renderOverdueBooks(overdue) {
             </div>
             <div class="overdue-meta">
                 <span class="days-overdue">${item.days_overdue} days overdue</span>
-                <button class="btn btn-danger" onclick="forceReturnBook('${item.borrow_id}')">
-                    Force Return
-                </button>
             </div>
         </div>
     `).join('');
@@ -830,37 +824,6 @@ async function returnBook(borrowId) {
         
     } catch (error) {
         console.error('Failed to return book:', error);
-        showError(error.message || 'Failed to return book. Please try again.');
-    } finally {
-        setButtonLoading(button, false);
-    }
-}
-
-// Force return book (admin only)
-async function forceReturnBook(borrowId) {
-    if (!currentUser || currentUser.role !== 'admin') {
-        showError('Admin access required');
-        return;
-    }
-
-    const button = event.target.closest('button');
-    
-    try {
-        setButtonLoading(button, true);
-        
-        await makeAPIRequest(`/borrow/admin/${borrowId}/force-return`, {
-            method: 'PATCH'
-        });
-        
-        showSuccess('Book returned successfully by admin!');
-        
-        // Refresh admin data
-        await loadBooks();
-        await loadCurrentBorrows();
-        await loadOverdueBooks();
-        
-    } catch (error) {
-        console.error('Failed to force return book:', error);
         showError(error.message || 'Failed to return book. Please try again.');
     } finally {
         setButtonLoading(button, false);
