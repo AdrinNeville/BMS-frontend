@@ -1,6 +1,6 @@
-// const API_BASE_URL = import.meta.env.VITE_FASTAPI_URL 
-const API_BASE_URL = import.meta.env.VITE_FASTAPI_URL;
-console.log("API:", API_BASE_URL);
+const API_BASE_URL = "https://bms-8ey2.onrender.com"
+// const API_BASE_URL = import.meta.env.VITE_FASTAPI_URL;
+// console.log("API:", API_BASE_URL);
 
 
 // Global state
