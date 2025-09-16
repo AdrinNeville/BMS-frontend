@@ -477,6 +477,7 @@ body {
 .manage-book-item:hover {
     background: #f3f4f6;
     border-color: #d1d5db;
+    cursor: default;
 }
 
 .manage-book-info h4 {
@@ -495,6 +496,9 @@ body {
     text-align: right;
     font-size: 12px;
     color: #6b7280;
+}
+.manage-book-actions:hover{
+    cursor: pointer;
 }
 
 /* Current Borrows */

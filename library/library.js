@@ -214,11 +214,13 @@ function setupAdminEventListeners() {
     const cancelManageBookModal = document.getElementById('cancelManageBookModal');
     const addCopiesBtn = document.getElementById('addCopiesBtn');
     const removeCopiesBtn = document.getElementById('removeCopiesBtn');
+    const deleteBookBtn = document.getElementById('deleteBookBtn'); 
 
     if (closeManageBookModal) closeManageBookModal.addEventListener('click', closeManageBookModalBtn);
     if (cancelManageBookModal) cancelManageBookModal.addEventListener('click', closeManageBookModalBtn);
     if (addCopiesBtn) addCopiesBtn.addEventListener('click', handleAddCopies);
     if (removeCopiesBtn) removeCopiesBtn.addEventListener('click', handleRemoveCopies);
+    if (deleteBookBtn) deleteBookBtn.addEventListener('click', handleDeleteBook);
 }
 
 // Tab switching - FIXED
@@ -1132,6 +1134,32 @@ function openManageBookModal(bookId) {
     // Store book ID for actions
     manageBookModal.dataset.bookId = bookId;
     
+    // Update delete button state based on borrowed copies
+    const deleteBookBtn = document.getElementById('deleteBookBtn');
+    const borrowedCopies = book.borrowed_copies || 0;
+    
+    if (deleteBookBtn) {
+        if (borrowedCopies > 0) {
+            deleteBookBtn.disabled = true;
+            deleteBookBtn.innerHTML = `
+                <span class="btn-text">Cannot Delete (${borrowedCopies} copies borrowed)</span>
+                <div class="btn-spinner hidden">
+                    <div class="spinner"></div>
+                </div>
+            `;
+            deleteBookBtn.title = "Cannot delete book while copies are borrowed";
+        } else {
+            deleteBookBtn.disabled = false;
+            deleteBookBtn.innerHTML = `
+                <span class="btn-text">Delete Book Permanently</span>
+                <div class="btn-spinner hidden">
+                    <div class="spinner"></div>
+                </div>
+            `;
+            deleteBookBtn.title = "Permanently delete this book from the library";
+        }
+    }
+    
     manageBookModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 }
@@ -1217,6 +1245,68 @@ async function handleRemoveCopies() {
         showError(error.message || 'Failed to remove copies. Please try again.');
     } finally {
         setButtonLoading(removeCopiesBtn, false);
+    }
+}
+
+async function handleDeleteBook() {
+    const manageBookModal = document.getElementById('manageBookModal');
+    const deleteBookBtn = document.getElementById('deleteBookBtn');
+    
+    if (!manageBookModal) return;
+    
+    const bookId = manageBookModal.dataset.bookId;
+    const book = allBooks.find(b => b.id == bookId);
+    
+    if (!book) {
+        showError('Book not found');
+        return;
+    }
+    
+    // Double confirmation for deletion
+    const bookTitle = book.title || 'Unknown';
+    const confirmMessage = `Are you sure you want to permanently delete "${bookTitle}"?\n\nThis action cannot be undone and will remove the book entirely from the library.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    // Second confirmation
+    const finalConfirm = confirm('This is your final warning. Click OK to permanently delete this book.');
+    if (!finalConfirm) {
+        return;
+    }
+    
+    try {
+        setButtonLoading(deleteBookBtn, true);
+        
+        await makeAPIRequest(`/books/${bookId}/discontinue-copies`, {
+            method: 'DELETE'
+        });
+        
+        showSuccess(`Book "${bookTitle}" has been permanently deleted from the library.`);
+        
+        // Close modal and refresh data
+        closeManageBookModalBtn();
+        await loadBooks();
+        await loadManageBooks();
+        
+        // Switch to books tab to show updated list
+        switchTab('books');
+        
+    } catch (error) {
+        console.error('Failed to delete book:', error);
+        
+        // Show more specific error message
+        let errorMessage = 'Failed to delete book. Please try again.';
+        if (error.message.includes('borrowed')) {
+            errorMessage = 'Cannot delete book: some copies are currently borrowed. Please wait for all copies to be returned.';
+        } else if (error.message.includes('not found')) {
+            errorMessage = 'Book not found. It may have already been deleted.';
+        }
+        
+        showError(errorMessage);
+    } finally {
+        setButtonLoading(deleteBookBtn, false);
     }
 }
 
