@@ -215,8 +215,8 @@ function setupAdminEventListeners() {
     const addCopiesBtn = document.getElementById('addCopiesBtn');
     const removeCopiesBtn = document.getElementById('removeCopiesBtn');
 
-    if (closeManageBookModal) closeManageBookModal.addEventListener('click', closeManageBookModal);
-    if (cancelManageBookModal) cancelManageBookModal.addEventListener('click', closeManageBookModal);
+    if (closeManageBookModal) closeManageBookModal.addEventListener('click', closeManageBookModalBtn);
+    if (cancelManageBookModal) cancelManageBookModal.addEventListener('click', closeManageBookModalBtn);
     if (addCopiesBtn) addCopiesBtn.addEventListener('click', handleAddCopies);
     if (removeCopiesBtn) removeCopiesBtn.addEventListener('click', handleRemoveCopies);
 }
@@ -1136,7 +1136,7 @@ function openManageBookModal(bookId) {
     document.body.style.overflow = 'hidden';
 }
 
-function closeManageBookModal() {
+function closeManageBookModalBtn() {
     const manageBookModal = document.getElementById('manageBookModal');
     if (manageBookModal) {
         manageBookModal.classList.add('hidden');
@@ -1172,7 +1172,7 @@ async function handleAddCopies() {
         // Refresh data and close modal
         await loadBooks();
         await loadManageBooks();
-        closeManageBookModal();
+        closeManageBookModalBtn();
         
     } catch (error) {
         console.error('Failed to add copies:', error);
@@ -1210,7 +1210,7 @@ async function handleRemoveCopies() {
         // Refresh data and close modal
         await loadBooks();
         await loadManageBooks();
-        closeManageBookModal();
+        closeManageBookModalBtn();
         
     } catch (error) {
         console.error('Failed to remove copies:', error);
@@ -1256,7 +1256,7 @@ function handleKeyboardShortcuts(e) {
     if (e.key === 'Escape') {
         closeBookModal();
         closeUserModal();
-        closeManageBookModal();
+        closeManageBookModalBtn();
     }
 }
 
