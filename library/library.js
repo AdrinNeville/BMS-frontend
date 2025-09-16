@@ -1,5 +1,7 @@
 // const API_BASE_URL = import.meta.env.VITE_FASTAPI_URL 
-const API_BASE_URL = __FASTAPI_URL__
+const API_BASE_URL = import.meta.env.VITE_FASTAPI_URL;
+console.log("API:", API_BASE_URL);
+
 
 // Global state
 let currentUser = null;

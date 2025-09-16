@@ -1,5 +1,7 @@
 // Configuration
-const API_BASE_URL = __FASTAPI_URL__
+const API_BASE_URL = import.meta.env.VITE_FASTAPI_URL;
+console.log("API:", API_BASE_URL);
+
 
 // DOM Elements
 const loginForm = document.getElementById('loginForm');
