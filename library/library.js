@@ -984,7 +984,6 @@ function openUserModal(userId) {
 
     // 7. Bind close buttons
     document.getElementById('cancelUserModal').onclick = closeUserModal;
-    document.getElementById('closeUserModalBtn').onclick = closeUserModal;
 
     console.log('Opened user modal for:', userId);
 }
