@@ -275,9 +275,13 @@ function validateField(fieldId) {
 }
 
 // Email validation
-function isValidEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+function isValidEmail(email, delay = 1000) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(emailRegex.test(email));
+    }, delay);
+  });
 }
 
 // Strong password validation
